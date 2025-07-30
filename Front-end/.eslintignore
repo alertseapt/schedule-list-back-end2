@@ -1,0 +1,11 @@
+old/
+dist/
+node_modules/
+*.min.js
+*.min.css
+assets/
+build.js
+test-auth.html
+login.html
+index.html
+public/

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(curl:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(node:*)",
+      "Bash(taskkill:*)",
+      "Bash(del \"C:\\Users\\Projetos\\Documents\\Projetos Cursor\\Schedule-mercocamp\\Back-end\\sql\\corpem_api_logs.sql\")",
+      "Bash(rm:*)",
+      "Bash(npm start)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)"
+    ],
+    "deny": []
+  }
+}

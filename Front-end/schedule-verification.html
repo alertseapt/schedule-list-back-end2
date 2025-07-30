@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificação de Agendamentos - Mercocamp</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .main-layout {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .user-info {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(200, 35, 51, 1);
+            transform: translateY(-1px);
+        }
+
+        .content-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 30px 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+            max-width: 1000px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .header {
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+
+        .header::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+            margin: 20px auto 0;
+            border-radius: 2px;
+        }
+
+        .search-section {
+            margin-bottom: 40px;
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        }
+
+        .help-btn {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            box-shadow: 0 2px 6px rgba(108, 117, 125, 0.3);
+        }
+
+        .help-btn:hover {
+            background: linear-gradient(135deg, #495057 0%, #343a40 100%);
+            transform: translateY(-50%) translateY(-2px);
+            box-shadow: 0 4px 10px rgba(108, 117, 125, 0.4);
+        }
+
+        .help-btn:active {
+            transform: translateY(-50%) translateY(0);
+            box-shadow: 0 2px 6px rgba(108, 117, 125, 0.3);
+        }
+
+        .help-btn i {
+            color: white;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px 18px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #4e73df;
+            box-shadow: 0 4px 12px rgba(78, 115, 223, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .input-group input::placeholder {
+            color: #adb5bd;
+            font-weight: 400;
+        }
+
+        .search-btn {
+            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(78, 115, 223, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
+            background: linear-gradient(135deg, #3c63d2 0%, #1e40af 100%);
+        }
+
+        .search-btn:active {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(78, 115, 223, 0.3);
+        }
+
+
+        .results-section {
+            margin-top: 40px;
+        }
+
+        .results-section h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .results-section h3::before {
+            content: '';
+            display: block;
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+            border-radius: 2px;
+        }
+
+        .result-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 0;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Estilo especial para agendamentos rejeitados ou cancelados */
+        .result-card.rejected-card {
+            border: 4px solid #dc3545;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+        }
+
+        .result-card.rejected-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+            border-color: #c82333;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .conference-btn {
+            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(78, 115, 223, 0.3);
+        }
+
+        .conference-btn:hover {
+            background: linear-gradient(135deg, #3c63d2 0%, #1e40af 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(78, 115, 223, 0.4);
+        }
+
+        .conference-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(78, 115, 223, 0.3);
+        }
+
+        .result-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-title i {
+            color: #4e73df;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-solicitado { 
+            background: #fff3cd; 
+            color: #856404; 
+            border: 3px solid #b8860b;
+        }
+        .status-agendado { 
+            background: #d4edda; 
+            color: #155724; 
+            border: 3px solid #0f3e0f;
+        }
+        .status-conferencia { 
+            background: #cce5ff; 
+            color: #004085; 
+            border: 3px solid #002952;
+        }
+        .status-contestado { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border: 3px solid #4a1216;
+        }
+        .status-recusado { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border: 3px solid #4a1216;
+        }
+        .status-cancelado { 
+            background: #e2e3e5; 
+            color: #383d41; 
+            border: 3px solid #1e2124;
+        }
+        .status-tratativa { 
+            background: #ffe6cc; 
+            color: #cc4400; 
+            border: 3px solid #992200;
+        }
+        .status-estoque { 
+            background: #d1ecf1; 
+            color: #0c5460; 
+            border: 3px solid #083438;
+        }
+        .status-cancelar { 
+            background: #f5c6cb; 
+            color: #721c24; 
+            border: 3px solid #4a1216;
+        }
+
+        /* Seções do Card */
+        .card-section {
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .card-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 24px 12px;
+            background: #fafbfc;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #495057;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .section-header i {
+            color: #4e73df;
+            font-size: 1rem;
+        }
+
+        .section-content {
+            padding: 16px 24px 20px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 12px;
+        }
+
+        .detail-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-bottom: 4px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .detail-value {
+            font-size: 1rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .date-value {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #495057;
+        }
+
+        .date-value i {
+            color: #4e73df;
+        }
+
+        /* Grid de quantidades */
+        .quantities-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .quantity-item {
+            text-align: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            color: #495057;
+            transition: all 0.2s ease;
+        }
+
+        .quantity-item:hover {
+            background: #e9ecef;
+            border-color: #dee2e6;
+        }
+
+        .quantity-number {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .quantity-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            font-weight: 500;
+        }
+
+        /* Observações */
+        .observations-text {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 4px solid #4e73df;
+            font-style: italic;
+            color: #495057;
+            line-height: 1.5;
+        }
+
+        /* Informações do Cliente */
+        .client-info {
+            font-size: 0.95rem !important;
+        }
+
+        .client-details {
+            line-height: 1.4;
+        }
+
+        .client-main {
+            margin-bottom: 4px;
+        }
+
+        .client-main strong {
+            color: #333;
+        }
+
+        .client-cnpj {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            border: 1px solid #e9ecef;
+        }
+
+        .client-secondary {
+            color: #6c757d;
+            margin-bottom: 2px;
+        }
+
+        .client-number {
+            color: #6c757d;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(78, 115, 223, 0.2);
+            border-top: 4px solid #4e73df;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: #4e73df;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .loading-dots {
+            color: #1e3a8a;
+            font-size: 1.2rem;
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+
+        /* Estilo específico para o campo da chave NFe */
+        .nfe-key-item {
+            margin-bottom: 0 !important;
+        }
+
+        .nfe-key-input {
+            width: 100%;
+            padding: 12px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            word-spacing: 1px;
+            letter-spacing: 0.3px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .nfe-key-input:hover {
+            background: white;
+            border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .nfe-key-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+            background: white;
+            transform: translateY(-1px);
+        }
+
+        .nfe-key-input:active {
+            background: white;
+            transform: translateY(0);
+        }
+
+        /* Botão Scroll to Top */
+        .scroll-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(78, 115, 223, 0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .scroll-to-top:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
+            background: linear-gradient(135deg, #1e3a8a 0%, #4e73df 100%);
+        }
+
+        .scroll-to-top:active {
+            transform: translateY(0);
+        }
+
+        .scroll-to-top.show {
+            display: flex;
+            animation: fadeInUp 0.3s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .content-area {
+                padding: 20px 15px;
+            }
+
+            .container {
+                padding: 25px;
+                border-radius: 12px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .search-section {
+                padding: 20px;
+            }
+
+            .help-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 0.9rem;
+                right: -5px;
+            }
+
+            .input-group input {
+                padding: 12px 15px;
+                font-size: 16px;
+            }
+
+            .search-btn {
+                padding: 14px 30px;
+                font-size: 15px;
+            }
+
+            .result-card {
+                margin-bottom: 16px;
+            }
+
+            .result-header {
+                padding: 16px 18px;
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .result-title {
+                font-size: 1.1rem;
+            }
+
+            .action-btn {
+                font-size: 0.75rem;
+                padding: 6px 12px;
+            }
+
+            .help-modal-content {
+                margin: 10px;
+                height: 95vh;
+                max-width: calc(100% - 20px);
+            }
+
+            .help-modal-body {
+                padding: 20px;
+            }
+
+            .help-section h4 {
+                font-size: 1.1rem;
+                margin-bottom: 15px;
+            }
+
+            .help-section li {
+                font-size: 0.9rem;
+                margin-bottom: 12px;
+            }
+
+            .top-bar {
+                padding: 12px 20px;
+            }
+
+            .user-info {
+                font-size: 13px;
+                padding: 6px 12px;
+            }
+
+            .logout-btn {
+                font-size: 13px;
+                padding: 6px 12px;
+            }
+        }
+
+            .section-header {
+                padding: 12px 18px 8px;
+                font-size: 0.9rem;
+            }
+
+            .section-content {
+                padding: 12px 18px 16px;
+            }
+
+            .quantities-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .quantity-item {
+                padding: 10px;
+            }
+
+            .quantity-number {
+                font-size: 1.2rem;
+            }
+        }
+
+        /* Estilo para quantidade clicável */
+        .quantity-clickable {
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .quantity-clickable:hover {
+            background: #dee2e6 !important;
+            border-color: #4e73df !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(78, 115, 223, 0.15);
+        }
+
+        .quantity-hint {
+            font-size: 0.65rem;
+            color: #6c757d;
+            margin-top: 4px;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .quantity-clickable:hover .quantity-hint {
+            opacity: 1;
+            color: #495057;
+        }
+
+        /* Modal de Produtos */
+        .products-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .products-modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 90%;
+            width: 1000px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .products-modal-header {
+            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .products-modal-header h3 {
+            margin: 0;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .products-modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.3s ease;
+        }
+
+        .products-modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .products-modal-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        /* Tabela de produtos do modal */
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .products-table th,
+        .products-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .products-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .products-table td {
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .products-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .products-table .product-code {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .products-table .product-quantity {
+            font-weight: 600;
+            color: #4e73df;
+        }
+
+        .products-table .product-value {
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .no-products {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .no-products i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* Modal de Ajuda */
+        .help-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .help-modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            height: 95vh;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideIn 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .help-modal-header {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .help-modal-header h3 {
+            margin: 0;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .help-modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.3s ease;
+        }
+
+        .help-modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .help-modal-body {
+            padding: 30px;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .help-section {
+            margin-bottom: 40px;
+            flex: 1;
+        }
+
+        .help-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .help-section h4 {
+            color: #495057;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .help-section h4 i {
+            color: #4e73df;
+            font-size: 1.2rem;
+        }
+
+        .help-section ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex: 1;
+        }
+
+        .help-section li {
+            margin-bottom: 16px;
+            padding-left: 25px;
+            position: relative;
+            line-height: 1.6;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .help-section li:before {
+            content: "▸";
+            color: #4e73df;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+
+        .help-section li strong {
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-layout">
+        <div class="top-bar">
+            <div class="user-info" id="userInfo">
+                Carregando...
+            </div>
+            <button class="logout-btn" onclick="logout()">Sair</button>
+        </div>
+
+        <div class="content-area">
+            <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <h1>Verificação de Agendamentos</h1>
+                <button class="help-btn" onclick="openHelpModal()" title="Como usar esta página">
+                    <i class="fas fa-question-circle"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="search-section">
+            <div class="input-group">
+                <label for="searchInput">Chave de NFe ou Número da NFe:</label>
+                <input type="text" id="searchInput" placeholder="Digite a chave de NFe ou número da NFe...">
+            </div>
+            <button class="search-btn" onclick="searchSchedule()">Buscar Agendamento</button>
+        </div>
+
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <h3>Resultados:</h3>
+            <div id="resultsContainer"></div>
+        </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Produtos -->
+    <div id="productsModal" class="products-modal" style="display: none;">
+        <div class="products-modal-content">
+            <div class="products-modal-header">
+                <h3><i class="fas fa-boxes"></i> Produtos do Agendamento</h3>
+                <button class="products-modal-close" onclick="closeProductsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="products-modal-body">
+                <div id="productsTableContainer">
+                    <!-- Tabela de produtos será inserida aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botão Scroll to Top -->
+    <button id="scrollToTop" class="scroll-to-top" onclick="scrollToTop()" title="Voltar ao topo">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+    <!-- Modal de Ajuda -->
+    <div id="helpModal" class="help-modal" style="display: none;">
+        <div class="help-modal-content">
+            <div class="help-modal-header">
+                <h3><i class="fas fa-question-circle"></i> Como usar esta página</h3>
+                <button class="help-modal-close" onclick="closeHelpModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="help-modal-body">
+                <div class="help-section">
+                    <h4><i class="fas fa-search"></i> Como buscar agendamentos</h4>
+                    <ul>
+                        <li><strong>Chave de NFe:</strong> Digite 44 ou mais dígitos (espaços e letras serão removidos automaticamente)</li>
+                        <li><strong>Número da NFe:</strong> Digite menos de 44 dígitos para buscar pelo número</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-info-circle"></i> Informações exibidas</h4>
+                    <ul>
+                        <li><strong>Cliente:</strong> Nome, número e CNPJ do estoque selecionado pelo usuário</li>
+                        <li><strong>Chave NFe:</strong> Clique no campo para selecionar e copiar</li>
+                        <li><strong>Produtos:</strong> Clique na quantidade para ver lista detalhada</li>
+                        <li><strong>Status:</strong> Situação atual do agendamento</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-cogs"></i> Ações disponíveis</h4>
+                    <ul>
+                        <li><strong>Em Conferência:</strong> Botão para alterar status do agendamento</li>
+                        <li><strong>Ver Produtos:</strong> Modal com detalhes de todos os produtos</li>
+                        <li><strong>Copiar Chave:</strong> Campo clicável para selecionar a chave NFe</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração da API
+        const API_BASE_URL = 'https://schedule-mercocamp-back-end.up.railway.app/api';
+        let authToken = null;
+
+        // Verificar autenticação ao carregar a página
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthentication();
+        });
+
+        // Verificar se o usuário está autenticado e tem nível 9
+        async function checkAuthentication() {
+            // Tentar obter token de diferentes lugares do localStorage
+            let token = localStorage.getItem('authToken') || localStorage.getItem('token');
+            
+            if (!token) {
+                redirectToLogin();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Token inválido');
+                }
+
+                const data = await response.json();
+                
+                if (data.user.level_access !== 9) {
+                    alert('Acesso negado. Esta página é exclusiva para usuários nível 9.');
+                    // Redirecionar para dashboard se não for nível 9
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                authToken = token;
+                updateUserInfo(data.user);
+                
+            } catch (error) {
+                console.error('Erro na verificação:', error);
+                redirectToLogin();
+            }
+        }
+
+        // Atualizar informações do usuário
+        function updateUserInfo(user) {
+            const userInfo = document.getElementById('userInfo');
+            userInfo.textContent = user.name;
+        }
+
+        // Redirecionar para login
+        function redirectToLogin() {
+            localStorage.removeItem('authToken');
+            window.location.href = 'login.html';
+        }
+
+        // Logout
+        function logout() {
+            // Confirmar logout
+            if (confirm('Tem certeza que deseja sair?')) {
+                // Limpar todos os dados de sessão
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                
+                // Redirecionar para login
+                window.location.href = 'login.html';
+            }
+        }
+
+        // Buscar agendamento
+        async function searchSchedule() {
+            const input = document.getElementById('searchInput').value.trim();
+            
+            if (!input) {
+                alert('Por favor, digite uma chave de NFe ou número da NFe.');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/schedule-verification/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ input: input })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro na busca');
+                }
+
+                displayResults(data);
+
+            } catch (error) {
+                console.error('Erro na busca:', error);
+                showError(error.message);
+            }
+        }
+
+        // Mostrar loading
+        function showLoading() {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            resultsContainer.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Buscando agendamentos<span class="loading-dots">...</span></div>
+                </div>
+            `;
+            resultsSection.style.display = 'block';
+        }
+
+        // Mostrar erro
+        function showError(message) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = `<div class="error">Erro: ${message}</div>`;
+        }
+
+        // Exibir resultados
+        function displayResults(data) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            if (data.results.length === 0) {
+                resultsContainer.innerHTML = '<div class="no-results">Nenhum agendamento encontrado.</div>';
+                return;
+            }
+
+            let html = `<p><strong>Tipo de busca:</strong> ${data.searchType === 'nfe_key' ? 'Chave de NFe' : 'Número da NFe'}</p>`;
+            html += `<p><strong>Valor buscado:</strong> ${data.searchValue}</p><br>`;
+
+            data.results.forEach(schedule => {
+                html += createResultCard(schedule);
+            });
+
+            resultsContainer.innerHTML = html;
+        }
+
+        // Criar card de resultado
+        function createResultCard(schedule) {
+            const statusClass = `status-${schedule.status.toLowerCase().replace(' ', '-')}`;
+            const cardClass = (schedule.status === 'Recusar' || schedule.status === 'Cancelar') ? 'result-card rejected-card' : 'result-card';
+            
+            return `
+                <div class="${cardClass}">
+                    <div class="result-header">
+                        <div class="result-title">
+                            <i class="fas fa-file-invoice"></i>
+                            NF-e ${schedule.info?.number || schedule.number}
+                        </div>
+                        <div class="header-actions">
+                            ${schedule.status !== 'Conferência' && schedule.status !== 'Estoque' && schedule.status !== 'Cancelado' && schedule.status !== 'Recusado' ? `
+                                <button class="action-btn conference-btn" onclick="changeStatusToConference(${schedule.id}, '${schedule.number}')" title="Marcar como Em Conferência">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    Em Conferência
+                                </button>
+                            ` : ''}
+                            <div class="status-badge ${statusClass}">${schedule.status}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Seção: Identificação -->
+                    <div class="card-section">
+                        <div class="section-header">
+                            <i class="fas fa-id-card"></i>
+                            <span>Identificação</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="detail-item">
+                                <div class="detail-label">ID do Sistema</div>
+                                <div class="detail-value">${schedule.id}</div>
+                            </div>
+                            <div class="detail-item nfe-key-item">
+                                <div class="detail-label">Chave da NF-e</div>
+                                <input type="text" class="nfe-key-input" value="${schedule.nfe_key}" readonly onclick="this.select()" title="Clique para selecionar a chave">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seção: Informações da Entrega -->
+                    <div class="card-section">
+                        <div class="section-header">
+                            <i class="fas fa-truck"></i>
+                            <span>Informações da Entrega</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="detail-item">
+                                <div class="detail-label">Cliente</div>
+                                <div class="detail-value client-info">
+                                    ${formatClientInfo(schedule)}
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Fornecedor</div>
+                                <div class="detail-value">${schedule.supplier || 'Não informado'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Data de Entrega</div>
+                                <div class="detail-value date-value">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    ${formatDate(schedule.date)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seção: Quantidades -->
+                    <div class="card-section">
+                        <div class="section-header">
+                            <i class="fas fa-boxes"></i>
+                            <span>Quantidades</span>
+                        </div>
+                        <div class="section-content quantities-grid">
+                            <div class="quantity-item">
+                                <div class="quantity-number">${schedule.case_count}</div>
+                                <div class="quantity-label">Volumes/Caixas</div>
+                            </div>
+                            <div class="quantity-item quantity-clickable" onclick="openProductsModal(${JSON.stringify(schedule).replace(/"/g, '&quot;')})">
+                                <div class="quantity-number">${schedule.qt_prod}</div>
+                                <div class="quantity-label">Produtos</div>
+                                <div class="quantity-hint"><i class="fas fa-eye"></i> Clique para ver detalhes</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${schedule.observations ? `
+                    <!-- Seção: Observações -->
+                    <div class="card-section">
+                        <div class="section-header">
+                            <i class="fas fa-sticky-note"></i>
+                            <span>Observações</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="observations-text">
+                                ${schedule.observations}
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Formatar informações do cliente usando dados da tabela wcl do banco dbmercocamp
+        function formatClientInfo(schedule) {
+            if (!schedule) return 'Não informado';
+            
+            // Extrair informações do estoque escolhido pelo usuário (da tabela wcl do banco dbmercocamp)
+            const clientName = schedule.client_info?.name;     // nome_cliente da tabela wcl
+            const clientNumber = schedule.client_info?.number; // no_seq da tabela wcl  
+            const clientCnpj = schedule.client_info?.cnpj || schedule.client; // cnpj_cpf da tabela wcl
+            
+            let html = '<div class="client-details">';
+            
+            // Nome do cliente (principal)
+            if (clientName && clientName.trim() !== '') {
+                html += `<div class="client-main"><strong>${clientName}</strong></div>`;
+            }
+            
+            // Informações secundárias (número e CNPJ)
+            let secondaryInfo = [];
+            
+            // Número do cliente (se disponível e diferente do CNPJ)
+            if (clientNumber && clientNumber !== clientCnpj) {
+                secondaryInfo.push(`Nº ${clientNumber}`);
+            }
+            
+            // CNPJ formatado (usar o que vier da tabela wcl, que já pode estar formatado)
+            if (clientCnpj) {
+                let formattedCnpj = clientCnpj;
+                // Se não estiver formatado, formatar
+                if (clientCnpj.length === 14 && /^\d+$/.test(clientCnpj)) {
+                    formattedCnpj = clientCnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+                } else if (clientCnpj.length === 11 && /^\d+$/.test(clientCnpj)) {
+                    formattedCnpj = clientCnpj.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+                }
+                secondaryInfo.push(`CNPJ: <span class="client-cnpj">${formattedCnpj}</span>`);
+            }
+            
+            // Adicionar informações secundárias
+            if (secondaryInfo.length > 0) {
+                html += '<div class="client-secondary">';
+                html += `<small>${secondaryInfo.join(' • ')}</small>`;
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            
+            // Se não temos nenhuma informação útil, mostrar apenas CNPJ como fallback
+            if (!clientName && !clientNumber && !clientCnpj) {
+                return 'Informações do cliente não disponíveis';
+            }
+            
+            return html;
+        }
+
+        // Formatar data
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        // Permitir busca com Enter
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchSchedule();
+            }
+        });
+
+        // Funções do Modal de Produtos
+        function openProductsModal(schedule) {
+            const modal = document.getElementById('productsModal');
+            const tableContainer = document.getElementById('productsTableContainer');
+            
+            // Buscar produtos do agendamento
+            const products = schedule.info?.products || [];
+            
+            if (products.length === 0) {
+                tableContainer.innerHTML = `
+                    <div class="no-products">
+                        <i class="fas fa-box-open"></i>
+                        <h4>Nenhum produto encontrado</h4>
+                        <p>Este agendamento não possui produtos cadastrados.</p>
+                    </div>
+                `;
+            } else {
+                // Criar tabela de produtos
+                let tableHTML = `
+                    <table class="products-table">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Qt.</th>
+                                <th>Unidade</th>
+                                <th>Valor Unit.</th>
+                                <th>Valor Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                products.forEach(product => {
+                    tableHTML += `
+                        <tr>
+                            <td><span class="product-code">${product.code || product.supplier_code || '-'}</span></td>
+                            <td>${product.description || product.supplier_description || '-'}</td>
+                            <td><span class="product-quantity">${product.quantity || 0}</span></td>
+                            <td>${product.unit || '-'}</td>
+                            <td class="product-value">${formatCurrency(product.unit_value || 0)}</td>
+                            <td class="product-value">${formatCurrency(product.total_value || 0)}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHTML += `
+                        </tbody>
+                    </table>
+                `;
+                
+                tableContainer.innerHTML = tableHTML;
+            }
+            
+            // Mostrar modal
+            modal.style.display = 'flex';
+            
+            // Adicionar evento para fechar com ESC
+            document.addEventListener('keydown', handleEscapeKey);
+            
+            // Prevenir scroll do body
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeProductsModal() {
+            const modal = document.getElementById('productsModal');
+            modal.style.display = 'none';
+            
+            // Remover evento ESC
+            document.removeEventListener('keydown', handleEscapeKey);
+            
+            // Restaurar scroll do body
+            document.body.style.overflow = 'auto';
+        }
+
+        function handleEscapeKey(event) {
+            if (event.key === 'Escape') {
+                closeProductsModal();
+            }
+        }
+
+        // Fechar modal clicando fora
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('productsModal');
+            if (event.target === modal) {
+                closeProductsModal();
+            }
+        });
+
+        // Função auxiliar para formatar moeda (reutilizada)
+        function formatCurrency(value) {
+            if (!value || value === 0) return 'R$ 0,00';
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+            }).format(value);
+        }
+
+        // Funções do Modal de Ajuda
+        function openHelpModal() {
+            const modal = document.getElementById('helpModal');
+            modal.style.display = 'flex';
+            
+            // Adicionar evento para fechar com ESC
+            document.addEventListener('keydown', handleHelpEscapeKey);
+            
+            // Prevenir scroll do body
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeHelpModal() {
+            const modal = document.getElementById('helpModal');
+            modal.style.display = 'none';
+            
+            // Remover evento ESC
+            document.removeEventListener('keydown', handleHelpEscapeKey);
+            
+            // Restaurar scroll do body
+            document.body.style.overflow = 'auto';
+        }
+
+        function handleHelpEscapeKey(event) {
+            if (event.key === 'Escape') {
+                closeHelpModal();
+            }
+        }
+
+        // Fechar modal de ajuda clicando fora
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('helpModal');
+            if (event.target === modal) {
+                closeHelpModal();
+            }
+        });
+
+        // Função para alterar status para "Em conferência"
+        async function changeStatusToConference(scheduleId, scheduleNumber) {
+            // Confirmar ação
+            if (!confirm(`Tem certeza que deseja alterar o status do agendamento NF-e ${scheduleNumber} para "Em Conferência"?`)) {
+                return;
+            }
+
+            try {
+                // Mostrar loading no botão
+                const button = event.target.closest('.conference-btn');
+                const originalContent = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Alterando...';
+                button.disabled = true;
+
+                const response = await fetch(`${API_BASE_URL}/schedule-verification/change-status`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        scheduleId: scheduleId,
+                        newStatus: 'Conferência',
+                        comment: 'Status alterado para Em Conferência via página de verificação'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro ao alterar status');
+                }
+
+                // Sucesso - atualizar a página ou o card
+                alert(`Status do agendamento NF-e ${scheduleNumber} alterado para "Em Conferência" com sucesso!`);
+                
+                // Recarregar os resultados para mostrar o novo status
+                searchSchedule();
+
+            } catch (error) {
+                console.error('Erro ao alterar status:', error);
+                alert(`Erro ao alterar status: ${error.message}`);
+                
+                // Restaurar botão
+                if (button) {
+                    button.innerHTML = originalContent;
+                    button.disabled = false;
+                }
+            }
+        }
+
+        // Função para scroll to top
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // Mostrar/esconder botão scroll to top baseado na posição da página
+        window.addEventListener('scroll', function() {
+            const scrollToTopBtn = document.getElementById('scrollToTop');
+            
+            if (window.pageYOffset > 300) {
+                scrollToTopBtn.classList.add('show');
+            } else {
+                scrollToTopBtn.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>

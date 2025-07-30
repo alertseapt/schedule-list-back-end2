@@ -1,0 +1,22 @@
+# Node
+node_modules/
+
+# Build
+/dist/
+
+# Antigos e temporários
+old/
+.claude/
+
+# Testes e arquivos locais
+*.local.*
+*.test.*
+test-auth.html
+
+# IDEs e sistema
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Outros
+*.log

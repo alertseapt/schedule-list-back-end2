@@ -1,0 +1,42 @@
+{
+  "name": "logireceive-frontend",
+  "version": "1.0.0",
+  "description": "Sistema de Recebimento de Mercadorias - LogiReceive Frontend",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
+    "format": "prettier --write .",
+    "start": "vite",
+    "serve": "vite preview"
+  },
+  "keywords": [
+    "logistics",
+    "warehouse",
+    "vue",
+    "frontend",
+    "dashboard"
+  ],
+  "author": "LogiReceive Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@vue/eslint-config-prettier": "^9.0.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-vue": "^9.33.0",
+    "prettier": "^3.6.2",
+    "serve": "^14.2.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "^5.2.4",
+    "axios": "^1.10.0",
+    "chart.js": "^4.5.0",
+    "vite": "^5.4.19",
+    "vue": "^3.5.17",
+    "vue-router": "^4.5.1"
+  }
+}

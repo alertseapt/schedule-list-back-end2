@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Recebimento de Mercadorias</title>
+    <link rel="stylesheet" href="assets/main-D62fRK_d.css">
+    <link rel="stylesheet" href="assets/login-QGf3o4fX.css">
+    <link rel="icon" href="assets/logo-DeMe0Qxk.png" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo-container">
+                    <div class="logo-box">
+                        <img src="assets/logo-DeMe0Qxk.png" alt="Logo" class="logo-img">
+                    </div>
+                    <div class="logo-texts">
+                        <h1 class="logo-title">Sistema de Recebimento</h1>
+                        <p class="logo-subtitle">Faça login para continuar</p>
+                    </div>
+                </div>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="username"><i class="fas fa-user"></i> Usuário</label>
+                    <input type="text" id="username" name="username" placeholder="Usuário" required>
+                </div>
+                <div class="form-group">
+                    <label for="password"><i class="fas fa-lock"></i> Senha</label>
+                    <input type="password" id="password" name="password" placeholder="Senha" required>
+                </div>
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" id="rememberMe">
+                        <span class="checkmark"></span>
+                        Lembrar de mim
+                    </label>
+                </div>
+                <button type="submit" class="login-btn">
+                    <span class="btn-text">Entrar</span>
+                    <span class="btn-loading" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Entrando...
+                    </span>
+                </button>
+                <div id="loginError" class="error-message" style="display: none;"></div>
+            </form>
+            <div class="login-footer">
+                <p>&copy; 2025 Sistema de Recebimento de Mercadorias</p>
+                <p><small><a href="/test-auth.html" style="color: #666;">🧪 Página de Teste</a></small></p>
+            </div>
+        </div>
+    </div>
+    <!-- Scripts -->
+    <script>
+        // Configuração da API
+        const API_BASE_URL = 'https://schedule-mercocamp-back-end.up.railway.app/api';
+
+        // Verificar se já está logado
+        document.addEventListener('DOMContentLoaded', async function() {
+            const token = localStorage.getItem('token');
+            const userData = localStorage.getItem('user');
+            
+            if (token && userData) {
+                try {
+                    // Verificar se o token ainda é válido
+                    const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        
+                        // Verificar nível de acesso e redirecionar adequadamente
+                        if (data.user.level_access === 9) {
+                            window.location.href = 'schedule-verification.html';
+                        } else {
+                            window.location.href = 'index.html';
+                        }
+                        return;
+                    } else {
+                        // Token inválido, limpar dados
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('authToken');
+                    }
+                } catch (error) {
+                    console.error('Erro na verificação de token:', error);
+                    // Em caso de erro, limpar dados
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('authToken');
+                }
+            }
+        });
+
+        // Manipulador do formulário de login
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            
+            const btnText = document.querySelector('.btn-text');
+            const btnLoading = document.querySelector('.btn-loading');
+            const errorDiv = document.getElementById('loginError');
+            
+            // Mostrar loading
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline-flex';
+            errorDiv.style.display = 'none';
+            
+            try {
+                console.log('Tentando fazer login...', { username, api: API_BASE_URL });
+                
+                // Usar fetch como no código original
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                console.log('Resposta do login:', { status: response.status, ok: response.ok });
+                console.log('Dados da resposta:', data);
+                
+                if (response.ok) {
+                    // Login bem-sucedido - seguir mesma lógica do código original
+                    console.log('Login bem-sucedido, salvando dados:', { token: !!data.token, user: data.user });
+                    
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('authToken', data.token); // Para compatibilidade
+                    
+                    if (rememberMe) {
+                        localStorage.setItem('rememberedUser', data.user.user);
+                    } else {
+                        localStorage.removeItem('rememberedUser');
+                    }
+                    
+                    console.log('Redirecionando baseado no nível de acesso...');
+                    
+                    // Verificar se há redirecionamento específico
+                    if (data.redirect || data.user.level_access === 9) {
+                        // Usuário nível 9 - redirecionar para página de verificação
+                        window.location.href = 'schedule-verification.html';
+                    } else {
+                        // Outros usuários - redirecionar para dashboard
+                        window.location.href = 'index.html';
+                    }
+                } else {
+                    // Login falhou
+                    throw new Error(data.message || data.error || 'Credenciais inválidas');
+                }
+                
+            } catch (error) {
+                console.error('Erro completo no login:', error);
+                
+                let errorMessage = 'Usuário ou senha inválidos';
+                
+                if (error.message && error.message !== 'Failed to fetch') {
+                    errorMessage = error.message;
+                } else if (error.name === 'TypeError' || error.message === 'Failed to fetch') {
+                    errorMessage = 'Erro de conexão com o servidor. Verifique sua internet.';
+                }
+                
+                errorDiv.textContent = errorMessage;
+                errorDiv.style.display = 'block';
+            } finally {
+                // Esconder loading
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        });
+
+        // Auto-complete se lembrar usuário
+        document.addEventListener('DOMContentLoaded', function() {
+            const rememberUser = localStorage.getItem('rememberUser');
+            const savedUser = localStorage.getItem('user');
+            
+            if (rememberUser && savedUser) {
+                try {
+                    const userData = JSON.parse(savedUser);
+                    document.getElementById('username').value = userData.user || '';
+                    document.getElementById('rememberMe').checked = true;
+                } catch (e) {
+                    console.error('Erro ao recuperar dados salvos:', e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
