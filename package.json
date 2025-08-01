@@ -1,0 +1,28 @@
+{
+  "name": "logireceive-frontend",
+  "version": "1.0.0",
+  "description": "Sistema de Recebimento de Mercadorias - LogiReceive Frontend",
+  "main": "dashboard.html",
+  "scripts": {
+    "start": "npx serve -s . -l 8000",
+    "dev": "npx serve -s . -l 8000",
+    "build": "node build.js",
+    "python-server": "python -m http.server 8000",
+    "open": "start http://localhost:8000/login.html"
+  },
+  "keywords": [
+    "logistics",
+    "warehouse",
+    "vue",
+    "frontend",
+    "dashboard"
+  ],
+  "author": "LogiReceive Team",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+} 
