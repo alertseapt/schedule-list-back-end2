@@ -285,7 +285,7 @@
 // Importar VueApiClient do App.vue
 const VueApiClient = window.VueApiClient || class {
   constructor() {
-    this.baseURL = 'https://schedule-mercocamp-back-end.up.railway.app/api'
+    this.baseURL = 'http://localhost:4000/api'
   }
   async request(endpoint, options = {}) {
     const token = localStorage.getItem('token')
@@ -475,10 +475,17 @@ export default {
         
         console.log('✅ Resposta do teste:', response)
         
-        this.$emit('notification', 
-          `E-mail de teste enviado com sucesso para: ${response.recipients.join(', ')}`, 
-          'success'
-        )
+        if (response.skipped) {
+          this.$emit('notification', 
+            'Teste de e-mail pulado - configure um e-mail principal para testar', 
+            'info'
+          )
+        } else {
+          this.$emit('notification', 
+            `E-mail de teste enviado com sucesso para: ${response.recipients.join(', ')}`, 
+            'success'
+          )
+        }
       } catch (error) {
         console.error('❌ Erro ao testar e-mail:', error)
         this.$emit('notification', 

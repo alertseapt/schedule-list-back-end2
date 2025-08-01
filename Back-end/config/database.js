@@ -2,7 +2,8 @@ const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 // Configuração do pool de conexões para dbusers
-// Contém tabela 'users' com: id, user, password, name, email, level_access (json), cli_access (json), created_by, created_at
+// Contém tabela 'users' com: id, user, password, name, level_access (json), cli_access (json), created_by, created_at, config (json)
+// Nota: Email settings são armazenadas no campo 'config' como JSON sob config.emailSettings
 const dbusersPool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 3306,
@@ -111,9 +112,29 @@ const executeUsersQuery = async (query, params = [], retries = 3) => {
 
 // Função para executar queries no banco dbcheckin com retry
 const executeCheckinQuery = async (query, params = [], retries = 3) => {
+  // Log especial para operações na tabela schedule_list
+  if (query.toLowerCase().includes('schedule_list')) {
+    console.log('🗄️ ==================== OPERAÇÃO SCHEDULE_LIST ====================');
+    console.log(`📋 Query: ${query}`);
+    console.log(`📋 Params: ${JSON.stringify(params)}`);
+    
+    if (query.toLowerCase().includes('insert')) {
+      console.log('⚠️ =============== INSERÇÃO NA SCHEDULE_LIST DETECTADA ===============');
+      console.log('📍 Stack trace:');
+      console.trace();
+    }
+  }
+  
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const [rows] = await dbcheckinPool.execute(query, params);
+      
+      // Log resultado de INSERTs
+      if (query.toLowerCase().includes('insert') && query.toLowerCase().includes('schedule_list')) {
+        console.log(`✅ INSERT executado com sucesso. Affected rows: ${rows.affectedRows}, Insert ID: ${rows.insertId}`);
+        console.log('🗄️ ==================== FIM OPERAÇÃO SCHEDULE_LIST ====================');
+      }
+      
       return rows;
     } catch (error) {
       console.error(`Erro na query dbcheckin (tentativa ${attempt}/${retries}):`, error.message);

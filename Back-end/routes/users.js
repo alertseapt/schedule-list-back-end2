@@ -14,7 +14,7 @@ router.use(authenticateToken);
 const schemas = {
   create: Joi.object({
     user: Joi.string().alphanum().min(3).max(30).required(),
-    password: Joi.string().min(6).required(),
+    password: Joi.string().min(4).required(),
     name: Joi.string().max(100).allow(null, ''),
     level_access: Joi.number().integer().min(0).max(4).required(),
     cli_access: Joi.object().default({})
@@ -22,7 +22,7 @@ const schemas = {
 
   update: Joi.object({
     user: Joi.string().alphanum().min(3).max(30),
-    password: Joi.string().min(6),
+    password: Joi.string().min(4),
     name: Joi.string().max(100).allow(null, ''),
     level_access: Joi.number().integer().min(0).max(4),
     cli_access: Joi.object()
@@ -30,7 +30,7 @@ const schemas = {
 
   profile: Joi.object({
     name: Joi.string().max(100).allow(null, ''),
-    password: Joi.string().min(6),
+    password: Joi.string().min(4),
     currentPassword: Joi.string().when('password', {
       is: Joi.exist(),
       then: Joi.required(),

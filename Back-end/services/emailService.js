@@ -672,27 +672,11 @@ class EmailService {
         }
       }
 
-      // Se não há destinatários das configurações, buscar e-mail do usuário na tabela users
+      // Se não há destinatários das configurações, pular envio silenciosamente
       if (recipients.length === 0) {
-        console.log('📧 Buscando e-mail do usuário na tabela users...');
-        try {
-          const users = await executeUsersQuery(
-            'SELECT email FROM users WHERE id = ?',
-            [userId]
-          );
-          
-          if (users.length > 0 && users[0].email) {
-            recipients.push(users[0].email);
-            console.log(`📧 E-mail encontrado: ${users[0].email}`);
-          }
-        } catch (error) {
-          console.error('Erro ao buscar e-mail do usuário:', error);
-        }
-      }
-
-      if (recipients.length === 0) {
-        console.log('⚠️ Nenhum destinatário encontrado');
-        return { success: false, reason: 'Nenhum destinatário encontrado' };
+        console.log('ℹ️ Usuário não possui configurações de e-mail - pulando envio de notificação');
+        console.log('   Para receber notificações por e-mail, configure nas configurações da conta');
+        return { success: true, reason: 'Nenhum e-mail configurado - envio pulado', skipped: true };
       }
 
       // Gerar template HTML
@@ -743,7 +727,12 @@ class EmailService {
         : recipients.split(';').map(email => email.trim()).filter(email => email);
 
       if (recipientList.length === 0) {
-        throw new Error('Nenhum destinatário válido fornecido');
+        console.log('ℹ️ Nenhum destinatário fornecido para teste de e-mail - pulando envio');
+        return {
+          success: true,
+          reason: 'Nenhum destinatário fornecido - teste pulado',
+          skipped: true
+        };
       }
 
       // Gerar template HTML

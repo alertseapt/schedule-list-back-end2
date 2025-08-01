@@ -28,7 +28,7 @@ class AuthGuard {
         if (data.user.level_access === 9) {
           // Se está tentando acessar o dashboard mas tem nível 9, redirecionar
           if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
-            window.location.href = 'schedule-verification.html'
+            window.location.href = '/schedule-verification.html'
             return
           }
         }
@@ -48,13 +48,14 @@ class AuthGuard {
     this.redirectToLogin()
   }
   redirectToLogin() {
-    window.location.href = 'login.html'
+    window.location.href = '/login.html'
   }
   initializeDashboard() {
     // Pode adicionar lógica extra aqui se necessário
   }
 }
-document.addEventListener('DOMContentLoaded', () => {
-  new AuthGuard()
-})
+// DESABILITADO para evitar conflito com main.js
+// document.addEventListener('DOMContentLoaded', () => {
+//   new AuthGuard()
+// })
 window.AuthGuard = AuthGuard

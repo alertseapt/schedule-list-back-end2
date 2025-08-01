@@ -5,6 +5,8 @@ const { authenticateToken, requireAdmin, requireManager, requireClientAccess, ch
 const emailService = require('../services/emailService');
 const { triggerProductsIntegration, triggerNfEntryIntegration } = require('./corpem');
 const productService = require('../services/productService');
+const DPVerificationServiceOptimized = require('../services/dpVerificationServiceOptimized');
+const DPVerificationServiceWithDate = require('../services/dpVerificationServiceWithDate');
 const multer = require('multer');
 const xml2js = require('xml2js');
 const Joi = require('joi');
@@ -29,6 +31,89 @@ const upload = multer({
 
 // Todas as rotas requerem autenticação
 router.use(authenticateToken);
+
+// Rota específica para verificar duplicidade de NFe (PRIMEIRA ETAPA)
+router.post('/check-duplicate', async (req, res) => {
+  try {
+    console.log('🔍 ==================== VERIFICAÇÃO DE DUPLICIDADE - PRIMEIRA ETAPA ====================');
+    console.log(`👤 Usuário: ${req.user?.user}`);
+    console.log(`📝 Dados recebidos: ${JSON.stringify(req.body, null, 2)}`);
+    
+    const { nfe_key } = req.body;
+    
+    if (!nfe_key) {
+      console.log('❌ Chave NFe não fornecida');
+      return res.status(400).json({
+        success: false,
+        message: 'Chave NFe é obrigatória'
+      });
+    }
+    
+    // Realizar verificação de duplicidade (mesma lógica usada nas outras rotas)
+    const cleanNfeKey = nfe_key.toString().trim().replace(/[^\d]/g, '');
+    console.log(`🔑 Chave NFe limpa: ${cleanNfeKey}`);
+    
+    const existingSchedules = await executeCheckinQuery(
+      'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?',
+      [cleanNfeKey]
+    );
+    
+    console.log(`📊 Agendamentos encontrados: ${existingSchedules.length}`);
+    
+    if (existingSchedules.length > 0) {
+      // Verificar se algum agendamento não está cancelado
+      const activeSchedules = existingSchedules.filter(schedule => 
+        schedule.status !== 'Cancelado' && schedule.status !== 'Recusado'
+      );
+      
+      console.log(`📊 Agendamentos ativos: ${activeSchedules.length}`);
+      
+      if (activeSchedules.length > 0) {
+        const activeSchedule = activeSchedules[0];
+        console.log(`❌ Duplicata detectada - Agendamento ID: ${activeSchedule.id}, Status: ${activeSchedule.status}`);
+        
+        return res.status(409).json({
+          success: false,
+          message: `Esta NFe já possui um agendamento ativo (Status: ${activeSchedule.status}). Não é possível criar um novo agendamento.`,
+          existing_schedule: {
+            id: activeSchedule.id,
+            number: activeSchedule.number,
+            status: activeSchedule.status,
+            client: activeSchedule.client
+          }
+        });
+      }
+    }
+    
+    console.log('✅ NFe não duplicada - pode prosseguir');
+    console.log('🔍 ==================== FIM VERIFICAÇÃO DUPLICIDADE ====================');
+    
+    return res.json({
+      success: true,
+      message: 'NFe pode ser agendada'
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na verificação de duplicidade:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor ao verificar duplicidade',
+      error: error.message
+    });
+  }
+});
+
+// Log interceptador para todas as requisições POST nesta rota
+router.use((req, res, next) => {
+  if (req.method === 'POST') {
+    console.log('🚨 =========================== POST REQUEST INTERCEPTADO ===========================');
+    console.log(`📍 Rota: ${req.originalUrl}`);
+    console.log(`👤 Usuário: ${req.user?.user || 'UNKNOWN'}`);
+    console.log(`📝 Body: ${JSON.stringify(req.body, null, 2)}`);
+    console.log('🚨 ========================================================================');
+  }
+  next();
+});
 
 // Schemas de validação para agendamentos (estrutura real: schedule_list)
 const scheduleSchemas = {
@@ -588,6 +673,10 @@ router.get('/:id', validate(paramSchemas.id, 'params'), async (req, res) => {
 // Criar agendamento (apenas admin/manager)
 router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res) => {
   try {
+    console.log('🚀 CRIANDO AGENDAMENTO - Rota POST /schedules');
+    console.log('   Usuário:', req.user.user);
+    console.log('   Body recebido:', JSON.stringify(req.body, null, 2));
+    
     const { 
       number, 
       nfe_key: nfeKey, 
@@ -600,6 +689,67 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
       qt_prod,
       info
     } = req.body;
+    
+    // ==================== VERIFICAÇÃO DE DUPLICIDADE DE CHAVE NFe ====================
+    console.log('🔒 ========== INICIANDO VERIFICAÇÃO DE DUPLICIDADE ==========');
+    console.log(`📋 Chave NFe original: "${nfeKey}"`);
+    console.log(`📋 Tipo da chave: ${typeof nfeKey}`);
+    console.log(`📋 Tamanho da chave: ${nfeKey ? nfeKey.length : 'NULL'}`);
+    
+    // Limpar e normalizar a chave NFe
+    const cleanNfeKey = nfeKey.toString().trim().replace(/[^\d]/g, '');
+    console.log(`🧹 Chave NFe limpa: "${cleanNfeKey}"`);
+    console.log(`🧹 Tamanho da chave limpa: ${cleanNfeKey.length}`);
+    
+    // Query para buscar duplicatas
+    const query = 'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?';
+    console.log(`🔍 Executando query: ${query}`);
+    console.log(`🔍 Parâmetro: "${cleanNfeKey}"`);
+    
+    const existingSchedules = await executeCheckinQuery(query, [cleanNfeKey]);
+    
+    console.log(`📊 Resultados encontrados: ${existingSchedules.length}`);
+    
+    if (existingSchedules.length > 0) {
+      console.log('📋 Agendamentos encontrados:');
+      existingSchedules.forEach((schedule, index) => {
+        console.log(`   ${index + 1}. ID: ${schedule.id}, Status: "${schedule.status}", Cliente: ${schedule.client}, NFe: "${schedule.nfe_key}"`);
+      });
+      
+      // Verificar se algum agendamento não está cancelado
+      const nonCancelledSchedules = existingSchedules.filter(schedule => 
+        schedule.status !== 'Cancelado'
+      );
+      
+      console.log(`🚫 Agendamentos NÃO cancelados: ${nonCancelledSchedules.length}`);
+      
+      if (nonCancelledSchedules.length > 0) {
+        const schedule = nonCancelledSchedules[0];
+        console.log(`❌ DUPLICIDADE DETECTADA! Bloqueando criação.`);
+        console.log(`   ID conflitante: ${schedule.id}`);
+        console.log(`   Status conflitante: "${schedule.status}"`);
+        console.log(`   Cliente conflitante: ${schedule.client}`);
+        console.log('🔒 ========== BLOQUEANDO CRIAÇÃO POR DUPLICIDADE ==========');
+        
+        return res.status(409).json({
+          error: 'Chave de acesso já cadastrada',
+          message: `Já existe um agendamento com esta chave de acesso (ID: ${schedule.id}, Status: ${schedule.status}). Apenas agendamentos cancelados permitem reutilização da chave.`,
+          conflicting_schedule: {
+            id: schedule.id,
+            nfe_key: schedule.nfe_key,
+            status: schedule.status,
+            client: schedule.client,
+            number: schedule.number
+          }
+        });
+      } else {
+        console.log(`✅ Todos os agendamentos encontrados estão cancelados. Permitindo criação.`);
+      }
+    } else {
+      console.log(`✅ Nenhum agendamento encontrado com a chave NFe. Permitindo criação.`);
+    }
+    
+    console.log('🔒 ========== VERIFICAÇÃO DE DUPLICIDADE CONCLUÍDA ==========');
     
     // VERIFICAÇÃO DE ACESSO PARA CNPJ
     // 1. Usuários nível 0 têm acesso total (sem verificações)
@@ -670,12 +820,21 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
       'Agendamento criado no sistema'
     ).then(result => {
       if (result.success) {
-        console.log(`📧 E-mail de criação enviado com sucesso para: ${result.recipients.join(', ')}`);
+        if (result.skipped) {
+          console.log(`ℹ️ E-mail de criação pulado: ${result.reason}`);
+        } else {
+          console.log(`📧 E-mail de criação enviado com sucesso para: ${result.recipients.join(', ')}`);
+        }
       } else {
         console.log(`⚠️ E-mail de criação não enviado: ${result.reason || result.error}`);
       }
     }).catch(error => {
-      console.error('❌ Erro ao enviar e-mail de criação:', error);
+      // Não tratar como erro se o e-mail foi pulado por falta de configuração
+      if (error.message && error.message.includes('e-mail configurado')) {
+        console.log('ℹ️ E-mail de criação pulado - usuário sem configuração');
+      } else {
+        console.error('❌ Erro ao enviar e-mail de criação:', error);
+      }
     });
 
     res.status(201).json({
@@ -704,12 +863,78 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
 // Criar agendamento com produtos via NFe (apenas admin/manager)
 router.post('/create-with-products', requireAdmin, validate(scheduleSchemas.createWithProducts), async (req, res) => {
   try {
+    console.log('🚀 CRIANDO AGENDAMENTO COM PRODUTOS - Rota POST /schedules/create-with-products');
     const { nfe_data } = req.body;
     
     console.log('📥 Criando agendamento com produtos via NFe');
     console.log('   Usuário:', req.user.user);
     console.log('   CNPJ:', nfe_data.client_cnpj);
+    console.log('   NFe Key:', nfe_data.nfe_key);
     console.log('   Nível de acesso:', req.user.level_access);
+    
+    // ==================== VERIFICAÇÃO DE DUPLICIDADE DE CHAVE NFe ====================
+    if (nfe_data.nfe_key) {
+      console.log('🔒 ========== INICIANDO VERIFICAÇÃO DE DUPLICIDADE (CREATE-WITH-PRODUCTS) ==========');
+      console.log(`📋 Chave NFe original: "${nfe_data.nfe_key}"`);
+      console.log(`📋 Tipo da chave: ${typeof nfe_data.nfe_key}`);
+      console.log(`📋 Tamanho da chave: ${nfe_data.nfe_key ? nfe_data.nfe_key.length : 'NULL'}`);
+      
+      const cleanNfeKey = nfe_data.nfe_key.toString().trim().replace(/[^\d]/g, '');
+      console.log(`🧹 Chave NFe limpa: "${cleanNfeKey}"`);
+      console.log(`🧹 Tamanho da chave limpa: ${cleanNfeKey.length}`);
+      
+      // Query para buscar duplicatas
+      const query = 'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?';
+      console.log(`🔍 Executando query: ${query}`);
+      console.log(`🔍 Parâmetro: "${cleanNfeKey}"`);
+      
+      const existingSchedules = await executeCheckinQuery(query, [cleanNfeKey]);
+      
+      console.log(`📊 Resultados encontrados: ${existingSchedules.length}`);
+
+      if (existingSchedules.length > 0) {
+        console.log('📋 Agendamentos encontrados:');
+        existingSchedules.forEach((schedule, index) => {
+          console.log(`   ${index + 1}. ID: ${schedule.id}, Status: "${schedule.status}", Cliente: ${schedule.client}, NFe: "${schedule.nfe_key}"`);
+        });
+        
+        // Verificar se algum agendamento não está cancelado
+        const nonCancelledSchedules = existingSchedules.filter(schedule => 
+          schedule.status !== 'Cancelado'
+        );
+        
+        console.log(`🚫 Agendamentos NÃO cancelados: ${nonCancelledSchedules.length}`);
+
+        if (nonCancelledSchedules.length > 0) {
+          const schedule = nonCancelledSchedules[0];
+          console.log(`❌ DUPLICIDADE DETECTADA! Bloqueando criação.`);
+          console.log(`   ID conflitante: ${schedule.id}`);
+          console.log(`   Status conflitante: "${schedule.status}"`);
+          console.log(`   Cliente conflitante: ${schedule.client}`);
+          console.log('🔒 ========== BLOQUEANDO CRIAÇÃO POR DUPLICIDADE ==========');
+          
+          return res.status(409).json({
+            error: 'Chave de acesso já cadastrada',
+            message: `Já existe um agendamento com esta chave de acesso (ID: ${schedule.id}, Status: ${schedule.status}). Apenas agendamentos cancelados permitem reutilização da chave.`,
+            conflicting_schedule: {
+              id: schedule.id,
+              nfe_key: schedule.nfe_key,
+              status: schedule.status,
+              client: schedule.client,
+              number: schedule.number
+            }
+          });
+        } else {
+          console.log(`✅ Todos os agendamentos encontrados estão cancelados. Permitindo criação.`);
+        }
+      } else {
+        console.log(`✅ Nenhum agendamento encontrado com a chave NFe. Permitindo criação.`);
+      }
+      
+      console.log('🔒 ========== VERIFICAÇÃO DE DUPLICIDADE CONCLUÍDA ==========');
+    } else {
+      console.log('⚠️ Chave NFe não fornecida. Pulando verificação de duplicidade.');
+    }
     
     // VERIFICAÇÃO ESPECIAL DE ACESSO PARA CNPJ
     // 1. Usuários nível 0 têm acesso total (sem verificações)
@@ -808,12 +1033,21 @@ router.post('/create-with-products', requireAdmin, validate(scheduleSchemas.crea
       `Agendamento criado automaticamente a partir da NFe ${nfe_data.number}`
     ).then(result => {
       if (result.success) {
-        console.log(`📧 E-mail de criação enviado com sucesso para: ${result.recipients.join(', ')}`);
+        if (result.skipped) {
+          console.log(`ℹ️ E-mail de criação pulado: ${result.reason}`);
+        } else {
+          console.log(`📧 E-mail de criação enviado com sucesso para: ${result.recipients.join(', ')}`);
+        }
       } else {
         console.log(`⚠️ E-mail de criação não enviado: ${result.reason || result.error}`);
       }
     }).catch(error => {
-      console.error('❌ Erro ao enviar e-mail de criação:', error);
+      // Não tratar como erro se o e-mail foi pulado por falta de configuração
+      if (error.message && error.message.includes('e-mail configurado')) {
+        console.log('ℹ️ E-mail de criação pulado - usuário sem configuração');
+      } else {
+        console.error('❌ Erro ao enviar e-mail de criação:', error);
+      }
     });
 
     res.status(201).json({
@@ -1080,9 +1314,13 @@ router.patch('/:id/status', validate(paramSchemas.id, 'params'), validate(schedu
     const updatedSchedule = updatedSchedules[0];
 
     // 🤖 TRIGGERS AUTOMÁTICOS CORPEM WMS
+    console.log('\n🔥🔥🔥 VERIFICANDO TRIGGERS CORPEM 🔥🔥🔥');
+    console.log('📊 Status atual:', schedule.status);
+    console.log('📊 Novo status:', status);
+    
     // Trigger 1: Cadastro de produtos quando status vira "Agendado"
     if (status === 'Agendado' && schedule.status !== 'Agendado') {
-      console.log('🤖 Trigger: Status mudou para "Agendado"');
+      console.log('🎯 TRIGGER ATIVADO: Status mudou para "Agendado"');
       
       // 1. Salvar produtos na tabela products para pré-preenchimento futuro
       console.log('📝 Salvando produtos na tabela products...');
@@ -1114,35 +1352,126 @@ router.patch('/:id/status', validate(paramSchemas.id, 'params'), validate(schedu
         console.error('❌ Erro ao salvar produtos na tabela products:', productSaveError.message);
       }
       
-      // 2. Integração com Corpem (cadastro de produtos)
-      console.log('🔗 Iniciando integração Corpem...');
+      // 2. Buscar DP na tabela WTR usando CNPJ (Serviço Otimizado)
+      console.log('🔍 Buscando DP na tabela WTR com serviço otimizado...');
+      try {
+        const dpService = new DPVerificationServiceWithDate();
+        
+        // Extrair informações necessárias do agendamento
+        const nfNumber = updatedSchedule.number || updatedSchedule.nfe_key;
+        const clientCnpj = updatedSchedule.client;
+        let clientNumber = null;
+        
+        // Tentar extrair número do cliente das informações adicionais se disponível
+        if (updatedSchedule.info) {
+          let info = updatedSchedule.info;
+          if (typeof info === 'string') {
+            info = JSON.parse(info);
+          }
+          // Buscar número do cliente nas informações do agendamento
+          clientNumber = info.client_number || info.no_cli || null;
+        }
+        
+        console.log(`   📋 Dados para busca:`);
+        console.log(`      NF: ${nfNumber}`);
+        console.log(`      CNPJ: ${clientCnpj}`);
+        console.log(`      Cliente: ${clientNumber || 'não disponível'}`);
+        
+        // Buscar DP usando serviço com validação de data
+        const dpResult = await dpService.getDPFromWtrTableWithDate(
+          nfNumber, 
+          clientCnpj, 
+          clientNumber,
+          scheduleId
+        );
+        
+        if (dpResult) {
+          // Atualizar o agendamento com o resultado da busca
+          await dpService.updateScheduleDP(updatedSchedule.id, dpResult);
+          console.log(`✅ DP encontrado e salvo: ${dpResult.dp_number}`);
+          console.log(`   📊 Estratégia utilizada: ${dpResult.strategy_used}`);
+          console.log(`   🕐 Encontrado em: ${dpResult.found_at}`);
+          
+          // Atualizar o objeto para usar nas próximas etapas
+          updatedSchedule.no_dp = dpResult.dp_number;
+          
+          // Log adicional para casos especiais
+          if (dpResult.strategy_used === 'client_fallback') {
+            console.log(`   ⚠️ Fallback utilizado - CNPJ no registro: ${dpResult.cnpj || 'não informado'}`);
+          } else if (dpResult.strategy_used === 'flexible_cnpj') {
+            console.log(`   🔄 Busca flexível - múltiplas NFs detectadas`);
+          } else if (dpResult.strategy_used === 'nf_only') {
+            console.log(`   ⚠️ Busca apenas por NF - validar manualmente`);
+          }
+          
+        } else {
+          console.log('⚠️ DP não encontrado na tabela WTR');
+          console.log('   Possíveis causas:');
+          console.log('   - NF não existe na base WTR');
+          console.log('   - CNPJ/Cliente não correspondem');
+          console.log('   - Dados inconsistentes');
+        }
+        
+        // Log das estatísticas do serviço
+        const stats = dpService.getStatistics();
+        if (stats.searches > 0) {
+          console.log(`📊 Estatísticas do serviço DP: ${stats.success_rate} taxa de sucesso`);
+        }
+        
+      } catch (dpSearchError) {
+        console.error('❌ Erro ao buscar DP na tabela WTR:', dpSearchError.message);
+        console.error('   Stack trace:', dpSearchError.stack);
+      }
+      
+      // 3. Integração com Corpem (cadastro de produtos)
+      console.log('🔗 Chamando triggerProductsIntegration...');
       triggerProductsIntegration(updatedSchedule, req.user.user)
         .then(result => {
+          console.log('📥 Resultado trigger produtos:', result);
           if (result.success) {
             console.log('✅ Trigger produtos Corpem: Integração bem-sucedida');
+            
+            // 4. Integração de NF APENAS após produtos serem cadastrados com sucesso
+            console.log('🔗 Produtos cadastrados com sucesso! Agora chamando triggerNfEntryIntegration...');
+            
+            return triggerNfEntryIntegration(updatedSchedule, req.user.user);
           } else {
             console.log('⚠️ Trigger produtos Corpem: Falha na integração -', result.message);
+            console.log('🚫 NF não será integrada pois produtos falharam');
+            return { success: false, message: 'Produtos não foram cadastrados, NF não integrada' };
+          }
+        })
+        .then(nfResult => {
+          if (nfResult) {
+            console.log('📥 Resultado trigger NF:', nfResult);
+            if (nfResult.success) {
+              console.log('✅ Trigger NF: Integração bem-sucedida');
+            } else {
+              console.log('⚠️ Trigger NF: Falha na integração -', nfResult.message);
+            }
           }
         })
         .catch(error => {
-          console.error('❌ Trigger produtos Corpem: Erro na integração -', error.message);
+          console.error('❌ Trigger Corpem: Erro na integração -', error.message);
+        });
+    } else {
+      // Se não for "Agendado", ainda executar integração de NF para outros status se necessário
+      console.log('🔗 Status não é "Agendado" - verificando se deve integrar NF...');
+      
+      // Integração de NF de entrada para outros status (se necessário)
+      triggerNfEntryIntegration(updatedSchedule, req.user.user)
+        .then(result => {
+          console.log('📥 Resultado trigger NF (outros status):', result);
+          if (result.success) {
+            console.log('✅ Trigger NF: Integração bem-sucedida');
+          } else {
+            console.log('⚠️ Trigger NF: Falha na integração -', result.message);
+          }
+        })
+        .catch(error => {
+          console.error('❌ Trigger NF: Erro na integração -', error.message);
         });
     }
-
-    // Integração de NF de entrada (executada para todos os agendamentos)
-    console.log('🤖 Trigger: Iniciando integração de NF de entrada no Corpem');
-    
-    triggerNfEntryIntegration(updatedSchedule, req.user.user)
-      .then(result => {
-        if (result.success) {
-          console.log('✅ Trigger NF: Integração bem-sucedida');
-        } else {
-          console.log('⚠️ Trigger NF: Falha na integração -', result.message);
-        }
-      })
-      .catch(error => {
-        console.error('❌ Trigger NF: Erro na integração -', error.message);
-      });
 
     // Preparar dados completos do agendamento para e-mail
     const clientInfo = await getClientInfo(updatedSchedule.client, req.user.cli_access);
@@ -1162,12 +1491,21 @@ router.patch('/:id/status', validate(paramSchemas.id, 'params'), validate(schedu
       historic_entry.comment
     ).then(result => {
       if (result.success) {
-        console.log(`📧 E-mail enviado com sucesso para: ${result.recipients.join(', ')}`);
+        if (result.skipped) {
+          console.log(`ℹ️ E-mail pulado: ${result.reason}`);
+        } else {
+          console.log(`📧 E-mail enviado com sucesso para: ${result.recipients.join(', ')}`);
+        }
       } else {
         console.log(`⚠️ E-mail não enviado: ${result.reason || result.error}`);
       }
     }).catch(error => {
-      console.error('❌ Erro ao enviar e-mail:', error);
+      // Não tratar como erro se o e-mail foi pulado por falta de configuração
+      if (error.message && error.message.includes('e-mail configurado')) {
+        console.log('ℹ️ E-mail pulado - usuário sem configuração');
+      } else {
+        console.error('❌ Erro ao enviar e-mail:', error);
+      }
     });
 
     res.json({
@@ -1295,6 +1633,109 @@ router.get('/client/:client', requireClientAccess('client'), async (req, res) =>
     console.error('Erro ao buscar agendamentos do cliente:', error);
     res.status(500).json({
       error: 'Erro interno do servidor'
+    });
+  }
+});
+
+// Rota para fazer parse de XML e verificar duplicidade de chave NFe
+router.post('/parse-xml', upload.single('xml_file'), async (req, res) => {
+  try {
+    // Verificar se o arquivo foi enviado
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'Arquivo XML é obrigatório'
+      });
+    }
+
+    // Converter XML para JSON
+    const parser = new xml2js.Parser({ explicitArray: false });
+    const xmlContent = req.file.buffer.toString();
+    
+    let parsedXML;
+    try {
+      parsedXML = await parser.parseStringPromise(xmlContent);
+    } catch (xmlError) {
+      console.error('Erro ao fazer parse do XML:', xmlError);
+      return res.status(400).json({
+        error: 'Estrutura XML inválida'
+      });
+    }
+
+    // Extrair chave de acesso do XML
+    let nfeKey = null;
+    try {
+      // Tentar extrair a chave de diferentes estruturas possíveis do XML NFe
+      if (parsedXML.nfeProc && parsedXML.nfeProc.NFe && parsedXML.nfeProc.NFe.infNFe) {
+        nfeKey = parsedXML.nfeProc.NFe.infNFe.$.Id.replace('NFe', '');
+      } else if (parsedXML.NFe && parsedXML.NFe.infNFe) {
+        nfeKey = parsedXML.NFe.infNFe.$.Id.replace('NFe', '');
+      } else if (parsedXML.enviNFe && parsedXML.enviNFe.NFe) {
+        const nfe = Array.isArray(parsedXML.enviNFe.NFe) ? parsedXML.enviNFe.NFe[0] : parsedXML.enviNFe.NFe;
+        nfeKey = nfe.infNFe.$.Id.replace('NFe', '');
+      }
+
+      if (!nfeKey || nfeKey.length !== 44) {
+        return res.status(400).json({
+          error: 'Chave de acesso NFe não encontrada ou inválida no XML'
+        });
+      }
+    } catch (extractError) {
+      console.error('Erro ao extrair chave NFe:', extractError);
+      return res.status(400).json({
+        error: 'Estrutura XML inválida - NFe não encontrada'
+      });
+    }
+
+    // Verificar se já existe um agendamento com a mesma chave de acesso
+    const cleanNfeKey = nfeKey.toString().trim().replace(/[^\d]/g, '');
+    console.log(`🔍 Verificando duplicidade para chave NFe: "${nfeKey}" (limpa: "${cleanNfeKey}")`);
+    
+    const existingSchedules = await executeCheckinQuery(
+      'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?',
+      [cleanNfeKey]
+    );
+
+    if (existingSchedules.length > 0) {
+      // Verificar se algum agendamento não está cancelado
+      const nonCancelledSchedules = existingSchedules.filter(schedule => 
+        schedule.status !== 'Cancelado'
+      );
+
+      if (nonCancelledSchedules.length > 0) {
+        const schedule = nonCancelledSchedules[0];
+        console.log(`❌ Chave NFe duplicada encontrada: ID ${schedule.id}, Status: ${schedule.status}`);
+        
+        return res.status(409).json({
+          error: 'Chave de acesso já cadastrada',
+          message: `Já existe um agendamento com esta chave de acesso (ID: ${schedule.id}, Status: ${schedule.status}). Apenas agendamentos cancelados permitem reutilização da chave.`,
+          conflicting_schedule: {
+            id: schedule.id,
+            nfe_key: schedule.nfe_key,
+            status: schedule.status,
+            client: schedule.client,
+            number: schedule.number
+          }
+        });
+      } else {
+        console.log(`✅ Chave NFe encontrada, mas todos os agendamentos estão cancelados. Permitindo continuação.`);
+      }
+    } else {
+      console.log(`✅ Nenhum agendamento encontrado com a chave NFe. Permitindo continuação.`);
+    }
+
+    // Se passou na verificação, retornar os dados parseados
+    res.json({
+      success: true,
+      message: 'XML parseado com sucesso',
+      nfe_key: nfeKey,
+      data: parsedXML
+    });
+
+  } catch (error) {
+    console.error('Erro ao processar arquivo XML:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Não foi possível processar o arquivo XML'
     });
   }
 });

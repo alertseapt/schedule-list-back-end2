@@ -173,23 +173,37 @@ router.post('/integrate-nf-entry/:scheduleId', requireAdmin, async (req, res) =>
  */
 async function triggerProductsIntegration(scheduleData, userId = 'system') {
   try {
+    console.log('\n🔥🔥🔥 TRIGGER PRODUTOS DISPARADO 🔥🔥🔥');
     console.log('🤖 Trigger automático: integrando produtos para agendamento', scheduleData.id);
+    console.log('👤 Usuário:', userId);
+    console.log('📋 Dados do agendamento:', {
+      id: scheduleData.id,
+      client: scheduleData.client,
+      number: scheduleData.number,
+      status: scheduleData.status
+    });
     
     // Verificar se configuração do Corpem está válida
+    console.log('🔍 Verificando configurações do Corpem...');
     if (!corpemService.isConfigValid()) {
-      console.log('⚠️ Configurações do Corpem não estão válidas, pulando integração');
+      console.log('❌ Configurações do Corpem não estão válidas, pulando integração');
       return { success: false, message: 'Configurações do Corpem incompletas' };
     }
+    console.log('✅ Configurações do Corpem válidas');
 
     // Verificar se tem produtos
+    console.log('🔍 Extraindo produtos do agendamento...');
     const products = corpemService.extractProductsFromSchedule(scheduleData);
     if (!products || products.length === 0) {
-      console.log('⚠️ Nenhum produto encontrado, pulando integração');
+      console.log('❌ Nenhum produto encontrado, pulando integração');
       return { success: false, message: 'Nenhum produto encontrado' };
     }
+    console.log(`✅ Encontrados ${products.length} produtos para integração`);
 
     // Integrar produtos
+    console.log('🚀 Chamando corpemService.registerProducts...');
     const result = await corpemService.registerProducts(scheduleData);
+    console.log('📥 Resultado da integração de produtos:', result);
     
     // Registrar log
     await logCorpemIntegration(scheduleData.id, 'products', result, userId);
@@ -214,16 +228,28 @@ async function triggerProductsIntegration(scheduleData, userId = 'system') {
  */
 async function triggerNfEntryIntegration(scheduleData, userId = 'system') {
   try {
+    console.log('\n🔥🔥🔥 TRIGGER NF ENTRY DISPARADO 🔥🔥🔥');
     console.log('🤖 Trigger automático: integrando NF de entrada para agendamento', scheduleData.id);
+    console.log('👤 Usuário:', userId);
+    console.log('📋 Dados do agendamento:', {
+      id: scheduleData.id,
+      client: scheduleData.client,
+      number: scheduleData.number,
+      status: scheduleData.status
+    });
     
     // Verificar se configuração do Corpem está válida
+    console.log('🔍 Verificando configurações do Corpem...');
     if (!corpemService.isConfigValid()) {
-      console.log('⚠️ Configurações do Corpem não estão válidas, pulando integração');
+      console.log('❌ Configurações do Corpem não estão válidas, pulando integração');
       return { success: false, message: 'Configurações do Corpem incompletas' };
     }
+    console.log('✅ Configurações do Corpem válidas');
 
     // Integrar NF de entrada
+    console.log('🚀 Chamando corpemService.registerNfEntry...');
     const result = await corpemService.registerNfEntry(scheduleData);
+    console.log('📥 Resultado da integração de NF:', result);
     
     // Registrar log
     await logCorpemIntegration(scheduleData.id, 'nf_entry', result, userId);
@@ -241,6 +267,71 @@ async function triggerNfEntryIntegration(scheduleData, userId = 'system') {
     return { success: false, message: error.message };
   }
 }
+
+/**
+ * Reprocessa integrações de um agendamento específico
+ */
+router.post('/reprocess-integrations/:scheduleId', async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    
+    // Buscar dados do agendamento
+    const scheduleData = await executeCheckinQuery(
+      'SELECT * FROM schedule_list WHERE id = ?',
+      [scheduleId]
+    );
+    
+    if (scheduleData.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agendamento não encontrado'
+      });
+    }
+    
+    const schedule = scheduleData[0];
+    const userId = req.user?.user || req.user?.name || 'system';
+    
+    console.log(`🔄 Reprocessando integrações para agendamento ${scheduleId}`);
+    
+    // Reprocessar integração de produtos
+    console.log('🔄 Reprocessando integração de produtos...');
+    const productsResult = await triggerProductsIntegration(schedule, userId);
+    console.log('📥 Resultado reprocessamento produtos:', productsResult);
+    
+    // Reprocessar integração de NF apenas se produtos foram bem-sucedidos
+    let nfResult = null;
+    if (productsResult.success) {
+      console.log('🔄 Produtos reprocessados com sucesso! Reprocessando integração de NF...');
+      nfResult = await triggerNfEntryIntegration(schedule, userId);
+      console.log('📥 Resultado reprocessamento NF:', nfResult);
+    } else {
+      console.log('🚫 Produtos falharam, NF não será reprocessada');
+    }
+    
+    // Preparar resposta
+    const results = {
+      products: productsResult,
+      nf_entry: nfResult
+    };
+    
+    const allSuccessful = productsResult.success && (!nfResult || nfResult.success);
+    
+    res.json({
+      success: true,
+      message: allSuccessful ? 'Reprocessamento iniciado com sucesso' : 'Reprocessamento iniciado com alguns erros',
+      results,
+      scheduleId: parseInt(scheduleId)
+    });
+
+  } catch (error) {
+    console.error('Erro ao reprocessar integrações:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
 
 /**
  * Lista logs de integração com Corpem
@@ -410,6 +501,126 @@ router.post('/reprocess-failed', requireAdmin, async (req, res) => {
 });
 
 /**
+ * Busca erros de um agendamento específico
+ */
+router.get('/schedule-errors/:scheduleId', async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    
+    // Buscar logs de erro para o agendamento
+    const errorLogs = await executeCheckinQuery(
+      `SELECT 
+        id, integration_type, success, message, error_details, user_id, created_at
+       FROM corpem_integration_logs 
+       WHERE schedule_id = ? AND success = 0
+       ORDER BY created_at DESC`,
+      [scheduleId]
+    );
+    
+    // Buscar também erros de verificação de DP se existir
+    let dpErrors = [];
+    try {
+      dpErrors = await executeCheckinQuery(
+        `SELECT 
+          id, 'dp_verification' as integration_type, 0 as success, 
+          CONCAT('Falha na verificação de DP: ', COALESCE(error_message, 'Erro desconhecido')) as message,
+          error_details, user_id, created_at
+         FROM dp_verification_logs 
+         WHERE schedule_id = ? AND success = 0
+         ORDER BY created_at DESC`,
+        [scheduleId]
+      );
+    } catch (dpError) {
+      // Se a tabela não existir, ignorar
+      console.log('Tabela dp_verification_logs não existe, ignorando erros de DP');
+    }
+    
+    // Combinar todos os erros
+    const allErrors = [...errorLogs, ...dpErrors].sort((a, b) => 
+      new Date(b.created_at) - new Date(a.created_at)
+    );
+    
+    // Contar erros por tipo
+    const errorCounts = {
+      products: errorLogs.filter(log => log.integration_type === 'products').length,
+      nf_entry: errorLogs.filter(log => log.integration_type === 'nf_entry').length,
+      dp_verification: dpErrors.length,
+      total: allErrors.length
+    };
+    
+    res.json({
+      success: true,
+      errors: allErrors,
+      errorCounts,
+      hasErrors: allErrors.length > 0
+    });
+
+  } catch (error) {
+    console.error('Erro ao buscar erros do agendamento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Busca agendamentos que possuem erros
+ */
+router.get('/schedules-with-errors', async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Buscar agendamentos que possuem erros
+    // NOTA: A tabela schedule_list não possui coluna 'updated_at'
+    // As atualizações são rastreadas no campo JSON 'historic'
+    const schedulesWithErrors = await executeCheckinQuery(
+      `SELECT DISTINCT 
+        s.id, s.number, s.client, s.date, s.status, s.historic,
+        COUNT(cil.id) as error_count,
+        MAX(cil.created_at) as last_error_date
+       FROM schedule_list s
+       INNER JOIN corpem_integration_logs cil ON s.id = cil.schedule_id
+       WHERE cil.success = 0
+       GROUP BY s.id, s.number, s.client, s.date, s.status, s.historic
+       ORDER BY last_error_date DESC
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+      []
+    );
+    
+    // Contar total de agendamentos com erros
+    const countResult = await executeCheckinQuery(
+      `SELECT COUNT(DISTINCT s.id) as total
+       FROM schedule_list s
+       INNER JOIN corpem_integration_logs cil ON s.id = cil.schedule_id
+       WHERE cil.success = 0`,
+      []
+    );
+    
+    res.json({
+      success: true,
+      schedules: schedulesWithErrors,
+      pagination: {
+        total: countResult[0].total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(countResult[0].total / parseInt(limit))
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro ao buscar agendamentos com erros:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
+
+/**
  * Função auxiliar para registrar logs de integração
  * @param {Number} scheduleId 
  * @param {String} integrationType 
@@ -486,5 +697,34 @@ async function logCorpemIntegration(scheduleId, integrationType, result, userId)
 
 // Exportar funções para uso interno
 module.exports = router;
+/**
+ * Função utilitária para extrair a última data de atualização do campo historic JSON
+ * Usada quando a coluna updated_at não existe na tabela schedule_list
+ * 
+ * @param {String|Object} historic - Campo JSON historic do agendamento
+ * @returns {Date|null} - Data da última atualização ou null
+ */
+function getLastUpdateFromHistoric(historic) {
+  try {
+    if (!historic) return null;
+    
+    const historicData = typeof historic === 'string' ? JSON.parse(historic) : historic;
+    const entries = Object.values(historicData);
+    
+    if (entries.length === 0) return null;
+    
+    // Encontrar a entrada mais recente baseada no timestamp
+    const latestEntry = entries
+      .filter(entry => entry && entry.timestamp)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+    
+    return latestEntry ? new Date(latestEntry.timestamp) : null;
+  } catch (error) {
+    console.error('Erro ao extrair data do histórico:', error);
+    return null;
+  }
+}
+
 module.exports.triggerProductsIntegration = triggerProductsIntegration;
 module.exports.triggerNfEntryIntegration = triggerNfEntryIntegration;
+module.exports.getLastUpdateFromHistoric = getLastUpdateFromHistoric;

@@ -11,7 +11,7 @@ class CorpemIntegrationService {
   constructor() {
     // Configurações do Corpem WMS
     this.config = {
-      baseURL: process.env.CORPEM_BASE_URL || 'http://webcorpem.no-ip.info:37560/scripts/mh.dll/wc',
+      baseURL: process.env.CORPEM_BASE_URL || 'http://webcorpem.no-ip.info:800/scripts/mh.dll/wc',
       cnpjWms: process.env.CORPEM_CNPJ_WMS || '', // CNPJ do cliente WMS sem máscara
       token: process.env.CORPEM_TOKEN || '6cnc3', // Token de autenticação
       tokenHeader: process.env.CORPEM_TOKEN_HEADER || 'TOKEN_CP', // Nome do header do token
@@ -37,21 +37,27 @@ class CorpemIntegrationService {
    * @returns {Promise<Object>} Resultado da integração
    */
   async registerProducts(scheduleData) {
+    const logPrefix = `[CORPEM-PROD][ID:${scheduleData.id}]`;
+    
     try {
-      console.log('🟩 PRODUCTS INTEGRATION - Schedule ID:', scheduleData.id);
+      console.log(`${logPrefix} 🚀 INICIANDO cadastro de produtos no Corpem`);
+      console.log(`${logPrefix} 📋 Cliente: ${scheduleData.client}`);
+      console.log(`${logPrefix} 🔗 Endpoint: ${this.config.baseURL}`);
 
       if (!scheduleData.client?.trim()) {
+        console.log(`${logPrefix} ❌ ERRO: CNPJ do cliente obrigatório`);
         return { success: false, message: 'CNPJ do estoque é obrigatório para integração com Corpem' };
       }
 
+      console.log(`${logPrefix} 🔍 Extraindo produtos do agendamento...`);
       const products = this.extractProductsFromSchedule(scheduleData);
       
       if (!products || products.length === 0) {
-        console.log('❌ Nenhum produto encontrado para cadastrar');
+        console.log(`${logPrefix} ❌ ERRO: Nenhum produto encontrado para cadastrar`);
         return { success: false, message: 'Nenhum produto encontrado' };
       }
 
-      console.log(`✅ Encontrados ${products.length} produtos para cadastrar`);
+      console.log(`${logPrefix} ✅ Encontrados ${products.length} produtos para cadastrar`);
 
       // Mapear produtos para formato Corpem
       const corpemProducts = products.map((product, index) => {
@@ -66,27 +72,41 @@ class CorpemIntegrationService {
         }
       };
 
-      console.log(`📤 Enviando ${corpemProducts.length} produtos para Corpem`);
+      console.log(`${logPrefix} 📡 Enviando ${corpemProducts.length} produtos para Corpem...`);
+      console.log(`${logPrefix} 🔑 Token: ${this.config.token ? '***' : 'NÃO CONFIGURADO'}`);
       
       const startTime = Date.now();
       const response = await this.axiosInstance.post('', payload);
       const duration = Date.now() - startTime;
 
-      console.log(`📥 Resposta Corpem: ${response.status} (${duration}ms)`);
+      console.log(`${logPrefix} 📥 Resposta recebida - Status: ${response.status} - Tempo: ${duration}ms`);
 
       // Log detalhado da requisição (formato detalhado)
       this.logCorpemRequest('POST', this.config.baseURL, payload, response, startTime, 'products', scheduleData.id);
 
       // Verificar resposta
       if (response.data.CORPEM_WS_OK === "OK") {
-        console.log('✅ Produtos cadastrados com sucesso no Corpem');
+        console.log(`${logPrefix} ✅ SUCESSO: Produtos cadastrados com sucesso no Corpem!`);
+        
+        // Agendar busca automática de DP após sucesso no cadastro de produtos
+        try {
+          const dpSchedulerService = require('./dpSchedulerService');
+          console.log(`${logPrefix} 📅 Agendando busca automática de DP...`);
+          await dpSchedulerService.scheduleDP(scheduleData);
+          console.log(`${logPrefix} ✅ Busca de DP agendada com sucesso!`);
+        } catch (dpError) {
+          console.error(`${logPrefix} ❌ Erro ao agendar busca de DP:`, dpError);
+          // Não falhar a integração por causa do agendamento de DP
+        }
+        
         return { 
           success: true, 
           message: 'Produtos cadastrados com sucesso no Corpem WMS',
           data: response.data
         };
       } else {
-        console.log('❌ Erro Corpem:', response.data.CORPEM_WS_ERRO);
+        console.log(`${logPrefix} ❌ ERRO: Corpem retornou erro`);
+        console.log(`${logPrefix} 🚨 Mensagem de erro: ${response.data.CORPEM_WS_ERRO}`);
         return { 
           success: false, 
           message: response.data.CORPEM_WS_ERRO || 'Erro desconhecido no Corpem',
@@ -150,21 +170,30 @@ class CorpemIntegrationService {
    * @returns {Promise<Object>} Resultado da integração
    */
   async registerNfEntry(scheduleData) {
+    const logPrefix = `[CORPEM-NF][ID:${scheduleData.id}]`;
+    
     try {
-      console.log('🟦 NF INTEGRATION - Schedule ID:', scheduleData.id);
+      console.log(`${logPrefix} 🚀 INICIANDO integração NF de entrada`);
+      console.log(`${logPrefix} 📋 Cliente: ${scheduleData.client}`);
+      console.log(`${logPrefix} 📄 Número NF: ${scheduleData.number}`);
+      console.log(`${logPrefix} 🔗 Endpoint: ${this.config.baseURL}`);
 
       if (!scheduleData.client?.trim()) {
+        console.log(`${logPrefix} ❌ ERRO: CNPJ do cliente obrigatório`);
         return { success: false, message: 'CNPJ do estoque é obrigatório' };
       }
 
+      console.log(`${logPrefix} 🔍 Extraindo dados da NFe...`);
       const nfeData = this.extractNfeDataFromSchedule(scheduleData);
       const products = this.extractProductsFromSchedule(scheduleData);
       const supplierCnpj = this.extractSupplierCnpj(scheduleData);
 
       if (!nfeData || !products?.length) {
-        console.log('❌ Dados insuficientes para NF');
+        console.log(`${logPrefix} ❌ ERRO: Dados insuficientes - NFe: ${!!nfeData}, Produtos: ${products?.length || 0}`);
         return { success: false, message: 'Dados da NFe/Produtos não encontrados' };
       }
+      
+      console.log(`${logPrefix} ✅ Dados extraídos - Produtos: ${products.length}, Fornecedor: ${supplierCnpj}`);
       
       // Extrair dados da estrutura NFe (seguindo padrão do repo funcionando)
       let info = scheduleData.info;
@@ -241,32 +270,37 @@ class CorpemIntegrationService {
       console.log('================================================================================');
 
       // 5. EXECUTAR REQUISIÇÃO
-      console.log('\n🔍 STEP 5: ENVIANDO PARA CORPEM');
-      console.log('📡 URL:', this.config.baseURL);
-      console.log('🔑 Token Length:', this.config.token?.length || 0);
+      console.log(`${logPrefix} 📡 Enviando para Corpem...`);
+      console.log(`${logPrefix} 🔑 Token: ${this.config.token ? '***' : 'NÃO CONFIGURADO'}`);
       
       const startTime = Date.now();
       const response = await this.axiosInstance.post('', payload);
       const duration = Date.now() - startTime;
 
       // 6. ANALISAR RESPOSTA
-      console.log('\n🔍 STEP 6: RESPOSTA CORPEM');
-      console.log('⏱️ Duração:', duration + 'ms');
-      console.log('📊 Status:', response.status);
-      console.log('📄 Response:', JSON.stringify(response.data, null, 2));
+      console.log(`${logPrefix} 📥 Resposta recebida - Status: ${response.status} - Tempo: ${duration}ms`);
+      
+      if (response.data) {
+        console.log(`${logPrefix} 📄 Dados da resposta:`, JSON.stringify(response.data, null, 2));
+      }
 
       // 7. ANÁLISE DO RESULTADO
       if (response.data.CORPEM_WS_OK === "OK") {
-        console.log('\n🎉 SUCCESS: NF integrada com sucesso!');
-        console.log('🟦'.repeat(60));
+        console.log(`${logPrefix} ✅ SUCESSO: NF integrada com sucesso no Corpem!`);
+        
+        // 8. INTEGRAR COM VERIFICAÇÃO DE DP
+        console.log(`${logPrefix} 🔗 Iniciando integração com verificação de DP...`);
+        await this.integrateWithDpVerification(scheduleData, response.data);
+        
+        console.log(`${logPrefix} 🎉 PROCESSO COMPLETO - Integração finalizada com sucesso`);
         return { 
           success: true, 
           message: 'NF de entrada integrada com sucesso no Corpem WMS',
           data: response.data
         };
       } else {
-        console.log('\n🚨 ERROR 999 ANALYSIS:');
-        console.log('❌ Erro:', response.data.CORPEM_WS_ERRO);
+        console.log(`${logPrefix} ❌ ERRO: Corpem retornou erro`);
+        console.log(`${logPrefix} 🚨 Mensagem de erro: ${response.data.CORPEM_WS_ERRO}`);
         
         // ANÁLISE DETALHADA PARA DEBUG DO ERRO 999
         console.log('\n🕵️ DEBUGGING ERROR 999:');
@@ -300,7 +334,16 @@ class CorpemIntegrationService {
       }
 
     } catch (error) {
-      console.error('❌ Erro na integração de NF de entrada com Corpem:', error);
+      console.log(`${logPrefix} 💥 EXCEÇÃO: Erro na integração com Corpem`);
+      console.log(`${logPrefix} 🔍 Tipo do erro: ${error.constructor.name}`);
+      console.log(`${logPrefix} 📝 Mensagem: ${error.message}`);
+      
+      if (error.response) {
+        console.log(`${logPrefix} 📡 Erro HTTP: ${error.response.status} - ${error.response.statusText}`);
+        console.log(`${logPrefix} 📄 Dados do erro:`, error.response.data);
+      } else if (error.request) {
+        console.log(`${logPrefix} 🌐 Erro de rede/timeout - Não foi possível conectar ao Corpem`);
+      }
       
       // Log da requisição com erro
       if (error.config) {
@@ -607,6 +650,109 @@ class CorpemIntegrationService {
     }
     
     return isValid;
+  }
+
+  /**
+   * Integra com o serviço de verificação de DP após sucesso no Corpem
+   * @param {Object} scheduleData - Dados do agendamento
+   * @param {Object} corpemResponse - Resposta do Corpem
+   * @returns {Promise<void>}
+   */
+  async integrateWithDpVerification(scheduleData, corpemResponse) {
+    const logPrefix = `[CORPEM-DP][ID:${scheduleData.id}]`;
+    
+    try {
+      console.log(`${logPrefix} 🔗 Iniciando integração com verificação de DP...`);
+      
+      const DPVerificationServiceOptimized = require('./dpVerificationServiceOptimized');
+      const dpService = new DPVerificationServiceOptimized();
+      
+      // Aguardar um pouco para o Corpem processar internamente
+      console.log(`${logPrefix} ⏳ Aguardando 2s para processamento interno do Corpem...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Tentar obter DP da tabela wtr usando serviço otimizado
+      console.log(`${logPrefix} 🔍 Buscando DP na tabela WTR com serviço otimizado...`);
+      
+      // Extrair informações necessárias do agendamento
+      const nfNumber = scheduleData.number || scheduleData.nfe_key;
+      const clientCnpj = scheduleData.client;
+      let clientNumber = null;
+      
+      // Tentar extrair número do cliente das informações adicionais
+      if (scheduleData.info) {
+        let info = scheduleData.info;
+        if (typeof info === 'string') {
+          info = JSON.parse(info);
+        }
+        clientNumber = info.client_number || info.no_cli || null;
+      }
+      
+      console.log(`${logPrefix} 📋 Dados para busca:`);
+      console.log(`${logPrefix}    NF: ${nfNumber}`);
+      console.log(`${logPrefix}    CNPJ: ${clientCnpj}`);
+      console.log(`${logPrefix}    Cliente: ${clientNumber || 'não disponível'}`);
+      
+      // Buscar DP usando serviço otimizado
+      const dpResult = await dpService.getDPFromWtrTableOptimized(
+        nfNumber, 
+        clientCnpj, 
+        clientNumber
+      );
+      
+      // Processar resultado
+      let dpNumber = null;
+      if (dpResult) {
+        dpNumber = dpResult.dp_number;
+        console.log(`${logPrefix} ✅ DP encontrado: ${dpNumber}`);
+        console.log(`${logPrefix} 📊 Estratégia utilizada: ${dpResult.strategy_used}`);
+        
+        // Atualizar agendamento com DP encontrado
+        await dpService.updateScheduleDP(scheduleData.id, dpResult);
+        console.log(`${logPrefix} 💾 Agendamento atualizado com DP`);
+      } else {
+        console.log(`${logPrefix} ⚠️ DP não encontrado`);
+      }
+      
+      if (dpNumber) {
+        console.log(`${logPrefix} ✅ DP encontrado e processado: ${dpNumber}`);
+        
+        // Log estatísticas do serviço
+        const stats = dpService.getStatistics();
+        if (stats.searches > 0) {
+          console.log(`${logPrefix} 📊 Estatísticas DP: ${stats.success_rate} taxa de sucesso`);
+        }
+        
+      } else {
+        console.log(`${logPrefix} ⚠️ DP não encontrado na primeira tentativa`);
+        
+        // Agendar uma verificação posterior com o serviço otimizado
+        console.log(`${logPrefix} ⏰ Agendando verificação posterior em 30s...`);
+        setTimeout(async () => {
+          console.log(`${logPrefix} 🔄 Tentativa posterior de obter DP...`);
+          
+          const laterDpResult = await dpService.getDPFromWtrTableOptimized(
+            nfNumber, 
+            clientCnpj, 
+            clientNumber
+          );
+          
+          if (laterDpResult) {
+            console.log(`${logPrefix} ✅ DP encontrado na segunda tentativa: ${laterDpResult.dp_number}`);
+            console.log(`${logPrefix} 📊 Estratégia: ${laterDpResult.strategy_used}`);
+            
+            // Atualizar agendamento
+            await dpService.updateScheduleDP(scheduleData.id, laterDpResult);
+            
+          } else {
+            console.log(`${logPrefix} ❌ DP não encontrado nem na segunda tentativa`);
+          }
+        }, 30000); // 30 segundos depois
+      }
+      
+    } catch (error) {
+      console.log(`${logPrefix} ❌ ERRO na integração com verificação de DP:`, error.message);
+    }
   }
 
   /**

@@ -3,61 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sistema de Recebimento de Mercadorias</title>
-    <link rel="stylesheet" href="assets/main-D62fRK_d.css">
-    <link rel="stylesheet" href="assets/login-QGf3o4fX.css">
-    <link rel="icon" href="assets/logo-DeMe0Qxk.png" type="image/png">
+    <title>Login - Schedule Mercocamp</title>
+    <link rel="icon" href="/src/assets/images/logo.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="/src/assets/css/login.css">
 </head>
 <body>
     <div class="login-container">
+        <!-- Background com animações -->
+        <div class="login-bg">
+            <div class="bg-pattern"></div>
+            <div class="floating-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
+                <div class="shape shape-3"></div>
+                <div class="shape shape-4"></div>
+            </div>
+        </div>
+
+        <!-- Card principal -->
         <div class="login-card">
             <div class="login-header">
                 <div class="logo-container">
                     <div class="logo-box">
-                        <img src="assets/logo-DeMe0Qxk.png" alt="Logo" class="logo-img">
+                        <img src="/src/assets/images/logo.png" alt="Logo Mercocamp" class="logo-img">
+                        <div class="logo-shine"></div>
                     </div>
                     <div class="logo-texts">
-                        <h1 class="logo-title">Sistema de Recebimento</h1>
-                        <p class="logo-subtitle">Faça login para continuar</p>
+                        <h1 class="logo-title">Schedule Mercocamp</h1>
+                        <p class="logo-subtitle">Sistema de Agendamento</p>
                     </div>
                 </div>
+                <div class="welcome-text">
+                    <h2>Bem-vindo de volta!</h2>
+                    <p>Faça login para acessar o sistema</p>
+                </div>
             </div>
+
             <form id="loginForm" class="login-form">
                 <div class="form-group">
-                    <label for="username"><i class="fas fa-user"></i> Usuário</label>
-                    <input type="text" id="username" name="username" placeholder="Usuário" required>
+                    <label for="username">
+                        <i class="fas fa-user"></i>
+                        <span>Usuário</span>
+                    </label>
+                    <div class="input-container">
+                        <input type="text" id="username" name="username" placeholder="Digite seu usuário" required>
+                        <div class="input-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="form-group">
-                    <label for="password"><i class="fas fa-lock"></i> Senha</label>
-                    <input type="password" id="password" name="password" placeholder="Senha" required>
+                    <label for="password">
+                        <i class="fas fa-lock"></i>
+                        <span>Senha</span>
+                    </label>
+                    <div class="input-container">
+                        <input type="password" id="password" name="password" placeholder="Digite sua senha" required>
+                        <div class="input-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <button type="button" class="toggle-password" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
+
                 <div class="form-options">
                     <label class="remember-me">
                         <input type="checkbox" id="rememberMe">
                         <span class="checkmark"></span>
-                        Lembrar de mim
+                        <span>Lembrar de mim</span>
                     </label>
+                    <a href="#" class="forgot-password">Esqueceu a senha?</a>
                 </div>
-                <button type="submit" class="login-btn">
-                    <span class="btn-text">Entrar</span>
+
+                <button type="submit" class="login-btn" id="loginBtn">
+                    <span class="btn-text">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Entrar no Sistema
+                    </span>
                     <span class="btn-loading" style="display: none;">
                         <i class="fas fa-spinner fa-spin"></i>
                         Entrando...
                     </span>
                 </button>
+
                 <div id="loginError" class="error-message" style="display: none;"></div>
             </form>
+
             <div class="login-footer">
-                <p>&copy; 2025 Sistema de Recebimento de Mercadorias</p>
-                <p><small><a href="/test-auth.html" style="color: #666;">🧪 Página de Teste</a></small></p>
+                <div class="system-info">
+                    <p><i class="fas fa-shield-alt"></i> Sistema Seguro</p>
+                    <p><i class="fas fa-clock"></i> Disponível 24/7</p>
+                </div>
+                <div class="footer-text">
+                    <p>&copy; 2025 Mercocamp - Todos os direitos reservados</p>
+                    <p class="version">v2.1.0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicador de carregamento global -->
+        <div id="globalLoader" class="global-loader" style="display: none;">
+            <div class="loader-content">
+                <div class="loader-spinner"></div>
+                <p>Conectando ao servidor...</p>
             </div>
         </div>
     </div>
+
     <!-- Scripts -->
     <script>
         // Configuração da API
-        const API_BASE_URL = 'https://schedule-mercocamp-back-end.up.railway.app/api';
+        const API_BASE_URL = 'http://localhost:4000/api';
+
+        // Elementos DOM
+        const loginForm = document.getElementById('loginForm');
+        const loginBtn = document.getElementById('loginBtn');
+        const btnText = document.querySelector('.btn-text');
+        const btnLoading = document.querySelector('.btn-loading');
+        const errorDiv = document.getElementById('loginError');
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+        const globalLoader = document.getElementById('globalLoader');
+
+        // Prevenir scroll em dispositivos móveis
+        document.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+
+        // Prevenir zoom em dispositivos móveis
+        document.addEventListener('gesturestart', function(e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('gesturechange', function(e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('gestureend', function(e) {
+            e.preventDefault();
+        });
+
+        // Toggle de visibilidade da senha
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            const icon = this.querySelector('i');
+            icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
 
         // Verificar se já está logado
         document.addEventListener('DOMContentLoaded', async function() {
@@ -66,6 +163,8 @@
             
             if (token && userData) {
                 try {
+                    globalLoader.style.display = 'flex';
+                    
                     // Verificar se o token ainda é válido
                     const response = await fetch(`${API_BASE_URL}/auth/verify`, {
                         method: 'GET',
@@ -80,9 +179,9 @@
                         
                         // Verificar nível de acesso e redirecionar adequadamente
                         if (data.user.level_access === 9) {
-                            window.location.href = 'schedule-verification.html';
+                            window.location.href = '/schedule-verification.html';
                         } else {
-                            window.location.href = 'index.html';
+                            window.location.href = '/';
                         }
                         return;
                     } else {
@@ -97,31 +196,46 @@
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
                     localStorage.removeItem('authToken');
+                } finally {
+                    globalLoader.style.display = 'none';
+                }
+            }
+
+            // Auto-complete se lembrar usuário
+            const rememberUser = localStorage.getItem('rememberUser');
+            const savedUser = localStorage.getItem('user');
+            
+            if (rememberUser && savedUser) {
+                try {
+                    const userData = JSON.parse(savedUser);
+                    document.getElementById('username').value = userData.user || '';
+                    document.getElementById('rememberMe').checked = true;
+                } catch (e) {
+                    console.error('Erro ao recuperar dados salvos:', e);
                 }
             }
         });
 
         // Manipulador do formulário de login
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const rememberMe = document.getElementById('rememberMe').checked;
             
-            const btnText = document.querySelector('.btn-text');
-            const btnLoading = document.querySelector('.btn-loading');
-            const errorDiv = document.getElementById('loginError');
+            // Validação básica
+            if (!username || !password) {
+                showError('Por favor, preencha todos os campos');
+                return;
+            }
             
             // Mostrar loading
-            btnText.style.display = 'none';
-            btnLoading.style.display = 'inline-flex';
-            errorDiv.style.display = 'none';
+            setLoadingState(true);
             
             try {
                 console.log('Tentando fazer login...', { username, api: API_BASE_URL });
                 
-                // Usar fetch como no código original
                 const response = await fetch(`${API_BASE_URL}/auth/login`, {
                     method: 'POST',
                     headers: {
@@ -139,7 +253,6 @@
                 console.log('Dados da resposta:', data);
                 
                 if (response.ok) {
-                    // Login bem-sucedido - seguir mesma lógica do código original
                     console.log('Login bem-sucedido, salvando dados:', { token: !!data.token, user: data.user });
                     
                     localStorage.setItem('token', data.token);
@@ -157,10 +270,10 @@
                     // Verificar se há redirecionamento específico
                     if (data.redirect || data.user.level_access === 9) {
                         // Usuário nível 9 - redirecionar para página de verificação
-                        window.location.href = 'schedule-verification.html';
+                        window.location.href = '/schedule-verification.html';
                     } else {
                         // Outros usuários - redirecionar para dashboard
-                        window.location.href = 'index.html';
+                        window.location.href = '/';
                     }
                 } else {
                     // Login falhou
@@ -178,29 +291,49 @@
                     errorMessage = 'Erro de conexão com o servidor. Verifique sua internet.';
                 }
                 
-                errorDiv.textContent = errorMessage;
-                errorDiv.style.display = 'block';
+                showError(errorMessage);
             } finally {
                 // Esconder loading
-                btnText.style.display = 'inline';
-                btnLoading.style.display = 'none';
+                setLoadingState(false);
             }
         });
 
-        // Auto-complete se lembrar usuário
-        document.addEventListener('DOMContentLoaded', function() {
-            const rememberUser = localStorage.getItem('rememberUser');
-            const savedUser = localStorage.getItem('user');
-            
-            if (rememberUser && savedUser) {
-                try {
-                    const userData = JSON.parse(savedUser);
-                    document.getElementById('username').value = userData.user || '';
-                    document.getElementById('rememberMe').checked = true;
-                } catch (e) {
-                    console.error('Erro ao recuperar dados salvos:', e);
-                }
+        // Funções auxiliares
+        function setLoadingState(loading) {
+            if (loading) {
+                btnText.style.display = 'none';
+                btnLoading.style.display = 'inline-flex';
+                loginBtn.disabled = true;
+                loginForm.classList.add('form-loading');
+            } else {
+                btnText.style.display = 'inline-flex';
+                btnLoading.style.display = 'none';
+                loginBtn.disabled = false;
+                loginForm.classList.remove('form-loading');
             }
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            // Auto-hide após 5 segundos
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Animações de entrada
+        document.addEventListener('DOMContentLoaded', function() {
+            const card = document.querySelector('.login-card');
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(30px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.6s ease-out';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 100);
         });
     </script>
 </body>

@@ -22,14 +22,34 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(compression());
 
-// Rate limiting
+// Rate limiting - Configuração mais permissiva para desenvolvimento
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // máximo 100 requests por IP
+  windowMs: 5 * 60 * 1000, // 5 minutos
+  max: 500, // máximo 500 requests por IP (aumentado para desenvolvimento)
   message: {
-    error: 'Muitas tentativas. Tente novamente em 15 minutos.'
+    error: 'Muitas tentativas. Tente novamente em 5 minutos.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Permitir mais tentativas para rotas de autenticação
+  skip: (req) => {
+    // Pular rate limiting para health check
+    return req.path === '/health';
   }
 });
+
+// Rate limiting específico para autenticação (mais permissivo)
+const authLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutos
+  max: 1000, // máximo 1000 tentativas de login por IP
+  message: {
+    error: 'Muitas tentativas de login. Tente novamente em 5 minutos.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+app.use('/api/auth', authLimiter);
 app.use('/api/', limiter);
 
 // Middleware para parsing JSON com limites aumentados
@@ -90,6 +110,8 @@ const emailTestRoutes = require('./routes/email-test');
 const corpemRoutes = require('./routes/corpem');
 const scheduleVerificationRoutes = require('./routes/schedule-verification');
 const dpVerificationRoutes = require('./routes/dp-verification');
+const dpSchedulerRoutes = require('./routes/dp-scheduler');
+const dpStatusMonitoringRoutes = require('./routes/dp-status-monitoring');
 
 // Usar rotas
 app.use('/api/auth', authRoutes);
@@ -102,6 +124,8 @@ app.use('/api/email-test', emailTestRoutes);
 app.use('/api/corpem', corpemRoutes);
 app.use('/api/schedule-verification', scheduleVerificationRoutes);
 app.use('/api/dp-verification', dpVerificationRoutes);
+app.use('/api/dp-scheduler', dpSchedulerRoutes);
+app.use('/api/dp-status-monitoring', dpStatusMonitoringRoutes);
 
 // Rota de health check
 app.get('/api/health', async (req, res) => {
@@ -239,21 +263,30 @@ async function startServer() {
     } else {
       console.log('✅ Conexões com os bancos de dados estabelecidas');
       
-      // Inicializar serviço de verificação de DP automaticamente
-      console.log('🚀 Inicializando serviço de verificação de DP...');
-      const dpVerificationService = require('./services/dpVerificationService');
-      
       // ===== INICIALIZAÇÃO DE SERVIÇOS =====
       
-      // DP Verification Service - TEMPORARIAMENTE DESABILITADO
-      // setTimeout(() => {
-      //   console.log('🔍 Iniciando serviço de verificação de DP...');
-      //   dpVerificationService.start();
-      //   console.log('✅ Serviço de verificação de DP iniciado automaticamente');
-      //   console.log('📊 Status disponível em: GET /api/dp-verification/status');
-      //   console.log('🗃️ Verificando agendamentos em dbcheckin.schedule_list');
-      //   console.log('🔗 Consultando dados em dbmercocamp.wtr');
-      // }, 5000); // Aguardar 5 segundos para garantir que as conexões estejam prontas
+      // DP Scheduler Service - Busca automática de DP
+      console.log('🚀 Inicializando serviço de agendamento de busca de DP...');
+      const dpSchedulerService = require('./services/dpSchedulerService');
+      
+      // DP Status Monitoring Service - Monitoramento de situação DP
+      console.log('🚀 Inicializando serviço de monitoramento de status DP...');
+      const DPStatusMonitoringService = require('./services/dpStatusMonitoringService');
+      const dpStatusService = new DPStatusMonitoringService();
+      
+      setTimeout(() => {
+        console.log('🔍 Iniciando DPSchedulerService...');
+        dpSchedulerService.start();
+        console.log('✅ DPSchedulerService iniciado automaticamente');
+        console.log('📊 Busca de DP: 5 min após criação, repete a cada 5 min, máx 10 tentativas');
+        console.log('🗃️ Consultando dados em dbmercocamp.wtr');
+        
+        console.log('🔍 Iniciando DPStatusMonitoringService...');
+        dpStatusService.start();
+        console.log('✅ DPStatusMonitoringService iniciado automaticamente');
+        console.log('📊 Monitoramento: verifica situação "Fechado" a cada 30s');
+        console.log('🗃️ Atualiza status para "Em estoque" automaticamente');
+      }, 5000); // Aguardar 5 segundos para garantir que as conexões estejam prontas
     }
     
     // Iniciar servidor com configurações HTTP aumentadas

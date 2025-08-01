@@ -60,12 +60,21 @@ router.post('/simple', async (req, res) => {
     const result = await emailService.sendTestEmail(recipientList);
 
     if (result.success) {
-      console.log('✅ E-mail de teste enviado com sucesso');
-      res.json({
-        message: 'E-mail de teste enviado com sucesso',
-        recipients: result.recipients,
-        messageId: result.messageId
-      });
+      if (result.skipped) {
+        console.log('ℹ️ Teste de e-mail pulado - nenhum destinatário configurado');
+        res.json({
+          message: 'Teste de e-mail pulado - nenhum destinatário configurado',
+          skipped: true,
+          reason: result.reason
+        });
+      } else {
+        console.log('✅ E-mail de teste enviado com sucesso');
+        res.json({
+          message: 'E-mail de teste enviado com sucesso',
+          recipients: result.recipients,
+          messageId: result.messageId
+        });
+      }
     } else {
       console.error('❌ Falha ao enviar e-mail de teste:', result.error);
       res.status(500).json({

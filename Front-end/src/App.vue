@@ -177,10 +177,12 @@
                         </span>
                       </td>
                       <td>
-                        <button class="btn btn-sm btn-outline-primary" @click="openInfoModal(schedule)" title="Mais informações">
-                          <i class="fas fa-info-circle"></i>
-                          Detalhes
-                        </button>
+                        <div class="action-buttons">
+                          <button class="btn btn-sm btn-outline-primary" @click="openInfoModal(schedule)" title="Mais informações">
+                            <i class="fas fa-info-circle"></i>
+                            Detalhes
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -196,7 +198,18 @@
 
             <!-- Modals -->
             <div v-if="showEditModal" style="color: red; font-weight: bold;">DEBUG: Modal de edição deveria estar visível</div>
-            <NfeInfoModal v-if="showInfoModal" :nfe-data="selectedSchedule" :show-modal="showInfoModal" :user="user" @close="closeInfoModal" @edit="openEditModal" @mark-tratativa="handleMarkSingleAsTratativa" @change-status="handleChangeStatusFromTratativa" />
+            <NfeInfoModal 
+              v-if="showInfoModal" 
+              :nfe-data="selectedSchedule" 
+              :show-modal="showInfoModal" 
+              :user="user" 
+              @close="closeInfoModal" 
+              @edit="openEditModal" 
+              @mark-tratativa="handleMarkSingleAsTratativa" 
+              @change-status="handleChangeStatusFromTratativa"
+              @reprocess-success="handleReprocessSuccess"
+              @reprocess-toast="handleReprocessToast"
+            />
             <ScheduleEditModal v-if="showEditModal" :schedule-data="scheduleToEdit" :show-modal="showEditModal" @close="closeEditModal" @updated="handleScheduleUpdated" @notification="addNotification" />
             <ScheduleCreationModal v-if="showScheduleCreationModal" :show-modal="showScheduleCreationModal" @close="closeScheduleCreationModal" @created="handleScheduleCreated" />
           </div>
@@ -270,7 +283,7 @@ function initializePermissions() {
 // Usar o apiClient global já otimizado com cache (importado de main.js)
 const apiClient = window.apiClient || new (class VueApiClientFallback {
   constructor() {
-    this.baseURL = 'https://schedule-mercocamp-back-end.up.railway.app/api'
+    this.baseURL = 'http://localhost:4000/api'
     this.token = localStorage.getItem('token')
   }
 
@@ -533,7 +546,7 @@ export default {
         date_to: '',
         nfe_number: '',
       },
-      availableClients: [],
+      availableClients: []
     }
   },
   computed: {
@@ -606,32 +619,17 @@ export default {
     },
   },
   async mounted() {
-    try {
-      console.log('🚀 Iniciando carregamento otimizado...')
-      await this.checkAuth()
-      initializePermissions()
-      
-      // Carregar clientes disponíveis
-      this.loadAvailableClients()
-      
-      // ESTRATÉGIA OTIMIZADA: Uma única requisição inicial
-      console.log('📊 Carregando dados essenciais...')
-      await this.loadEssentialDataOptimized()
-      
-      // Liberar interface imediatamente
-      this.loading = false
-      console.log('✅ Interface liberada!')
-      
-      // Carregar dados secundários sob demanda
-      this.$nextTick(() => {
-        this.loadSecondaryDataLazy()
-      })
-      
-    } catch (error) {
-      console.error('Erro ao inicializar dashboard:', error)
-      this.addNotification('Erro ao carregar dados do dashboard', 'error')
-      this.loading = false
-    }
+    console.log('🚀 App.vue montado');
+    
+    // Verificar autenticação
+    await this.checkAuth();
+    
+    // Carregar dados iniciais
+    await this.loadInitialData();
+    
+    
+    // Inicializar permissões
+    initializePermissions();
   },
   methods: {
     async checkAuth() {
@@ -1811,6 +1809,38 @@ export default {
         this.availableClients = []
       }
     },
+
+
+    handleReprocessSuccess(scheduleData) {
+      console.log('✅ Reprocessamento bem-sucedido para agendamento:', scheduleData.id);
+      // Recarregar dados do dashboard se necessário
+      this.loadEssentialDataOptimized();
+    },
+
+    handleReprocessToast(message) {
+      this.addNotification(message, 'info');
+    },
+
+    async loadInitialData() {
+      try {
+        console.log('📊 Carregando dados iniciais...')
+        
+        // Carregar clientes disponíveis
+        this.loadAvailableClients()
+        
+        // Carregar dados essenciais
+        await this.loadEssentialDataOptimized()
+        
+        // Liberar interface
+        this.loading = false
+        console.log('✅ Dados iniciais carregados!')
+        
+      } catch (error) {
+        console.error('Erro ao carregar dados iniciais:', error)
+        this.addNotification('Erro ao carregar dados iniciais', 'error')
+        this.loading = false
+      }
+    },
   },
 }
 
@@ -2065,5 +2095,12 @@ window.apiClient = apiClient
   border-color: #5B0E20 !important;
   color: white !important;
   box-shadow: 0 0 0 0.2rem rgba(139, 21, 56, 0.25) !important;
+}
+
+/* Action buttons styling */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 </style>

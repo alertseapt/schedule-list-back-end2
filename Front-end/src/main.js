@@ -7,7 +7,7 @@ import './assets/css/main.css'
 import './assets/css/vue-components.css'
 
 // Configurar axios defaults
-axios.defaults.baseURL = 'https://schedule-mercocamp-back-end.up.railway.app/api'
+axios.defaults.baseURL = 'http://localhost:4000/api'
 
 // Função para verificar nível de acesso antes de inicializar a app
 async function checkUserAccessLevel() {
@@ -15,7 +15,7 @@ async function checkUserAccessLevel() {
   
   if (!token) {
     // Sem token, redirecionar para login
-    window.location.href = 'login.html'
+    window.location.href = '/login.html'
     return false
   }
 
@@ -26,7 +26,7 @@ async function checkUserAccessLevel() {
 
     if (response.data.user.level_access === 9) {
       // Usuário nível 9 deve ir para página de verificação
-      window.location.href = 'schedule-verification.html'
+      window.location.href = '/schedule-verification.html'
       return false
     }
 
@@ -37,7 +37,7 @@ async function checkUserAccessLevel() {
     localStorage.removeItem('token')
     localStorage.removeItem('authToken')
     localStorage.removeItem('user')
-    window.location.href = 'login.html'
+    window.location.href = '/login.html'
     return false
   }
 }

@@ -176,6 +176,7 @@
             <p>Este agendamento ainda não possui histórico de alterações.</p>
           </div>
         </div>
+
       </div>
 
       <!-- Footer -->
@@ -223,7 +224,8 @@ export default {
       activeTab: 'general',
       expandedSections: {},
       copySuccess: false,
-      selectedNewStatus: ''
+      selectedNewStatus: '',
+      reprocessing: false
     }
   },
 
@@ -682,6 +684,8 @@ export default {
         this.closeModal()
       }
     },
+
+
   },
 
   mounted() {
@@ -993,68 +997,5 @@ export default {
   margin: 0;
 }
 
-/* Estilos específicos para a tabela de produtos no modal NFe */
-.nfe-info-modal .products-table {
-  min-width: 100%;
-  table-layout: fixed;
-}
 
-.nfe-info-modal .products-table-container {
-  overflow-x: hidden;
-  max-width: 100%;
-}
-
-/* Definir larguras específicas para cada coluna do modal NFe */
-.nfe-info-modal .products-table th:nth-child(1) { width: 12%; }  /* Cód. Fornecedor */
-.nfe-info-modal .products-table th:nth-child(2) { width: 20%; }  /* Descrição Fornecedor - REDUZIDA */
-.nfe-info-modal .products-table th:nth-child(3) { width: 12%; }  /* Cód. Venda */
-.nfe-info-modal .products-table th:nth-child(4) { width: 20%; }  /* Descrição Venda */
-.nfe-info-modal .products-table th:nth-child(5) { width: 10%; }  /* Quantidade */
-.nfe-info-modal .products-table th:nth-child(6) { width: 10%; }  /* Valor Unit. */
-.nfe-info-modal .products-table th:nth-child(7) { width: 10%; }  /* Valor Total */
-.nfe-info-modal .products-table th:nth-child(8) { width: 12%; }  /* Código EAN */
-
-/* Tornar as descrições expansíveis com quebra de linha */
-.nfe-info-modal .products-table td:nth-child(2),
-.nfe-info-modal .products-table td:nth-child(4) {
-  word-wrap: break-word;
-  word-break: break-word;
-  white-space: normal;
-  line-height: 1.3;
-  max-width: 0; /* Força o uso da largura definida */
-}
-
-/* Observations Card Adjustments */
-.observations-item {
-  margin-top: 1.5rem;
-}
-
-.observations-item label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.observations-item label i {
-  color: #007bff;
-}
-
-.observations-item .observations-text {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  line-height: 1.5;
-}
-
-.observations-item .no-observations {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #6c757d;
-  font-style: italic;
-}
-
-.observations-item .no-observations i {
-  color: #dee2e6;
-  font-size: 1rem;
-}
 </style>

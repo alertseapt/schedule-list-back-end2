@@ -3,294 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verificação de Agendamentos - Mercocamp</title>
+    <title>Verificação de Agendamentos - Schedule Mercocamp</title>
+    <link rel="icon" href="/src/assets/images/logo.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="/src/assets/css/login.css">
     <style>
-        * {
+        /* Reset e configurações base para permitir scroll */
+        html, body {
             margin: 0;
             padding: 0;
+            height: auto;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
             box-sizing: border-box;
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+        /* Estilos específicos para a página de verificação */
+        .verification-container {
+            display: flex;
             min-height: 100vh;
-            margin: 0;
-            padding: 0;
+            width: 100vw;
+            background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
+            font-family: 'Poppins', sans-serif;
+            position: relative;
+            overflow-x: hidden;
+            overflow-y: auto;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 20px 20px 40px 20px;
+            flex-direction: column;
+            box-sizing: border-box;
         }
 
-        .main-layout {
-            min-height: 100vh;
+        .user-name-top {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(37, 99, 235, 0.1);
+            color: #2563eb;
+            border: 2px solid rgba(37, 99, 235, 0.2);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .user-name-top:hover {
+            background: rgba(37, 99, 235, 0.15);
+            border-color: rgba(37, 99, 235, 0.4);
+        }
+
+        .user-name-top i {
+            color: #2563eb;
+        }
+
+        .verification-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 48px 40px;
+            width: 85%;
+            max-width: none;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.25),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 1;
+            animation: slideIn 0.8s ease-out;
             display: flex;
             flex-direction: column;
-        }
-
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 25px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .user-info {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            color: #333;
-            font-weight: 500;
-        }
-
-        .logout-btn {
-            background: rgba(220, 53, 69, 0.9);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            background: rgba(200, 35, 51, 1);
-            transform: translateY(-1px);
-        }
-
-        .content-area {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 30px 20px;
-        }
-
-        .container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-            padding: 40px;
-            max-width: 1000px;
-            width: 100%;
+            overflow: visible;
             margin: 0 auto;
+            align-self: center;
         }
 
-        .header {
-            margin-bottom: 40px;
-            position: relative;
-        }
-
-        .header-content {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-        }
-
-        .header h1 {
-            color: #333;
-            font-size: 2.2rem;
-            font-weight: 700;
-            margin: 0;
-            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-align: center;
-        }
-
-        .header::after {
-            content: '';
-            display: block;
-            width: 60px;
-            height: 3px;
-            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
-            margin: 20px auto 0;
-            border-radius: 2px;
-        }
-
-        .search-section {
-            margin-bottom: 40px;
-            background: #f8f9fa;
-            padding: 30px;
-            border-radius: 12px;
-            border: 1px solid #e9ecef;
-        }
-
-        .help-btn {
+        .logout-btn-top {
             position: absolute;
-            top: 50%;
-            right: 0;
-            transform: translateY(-50%);
-            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            box-shadow: 0 2px 6px rgba(108, 117, 125, 0.3);
-        }
-
-        .help-btn:hover {
-            background: linear-gradient(135deg, #495057 0%, #343a40 100%);
-            transform: translateY(-50%) translateY(-2px);
-            box-shadow: 0 4px 10px rgba(108, 117, 125, 0.4);
-        }
-
-        .help-btn:active {
-            transform: translateY(-50%) translateY(0);
-            box-shadow: 0 2px 6px rgba(108, 117, 125, 0.3);
-        }
-
-        .help-btn i {
-            color: white;
-        }
-
-        .input-group {
-            margin-bottom: 25px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 10px;
-            color: #333;
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 15px 18px;
-            border: 2px solid #dee2e6;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: #4e73df;
-            box-shadow: 0 4px 12px rgba(78, 115, 223, 0.15);
-            transform: translateY(-1px);
-        }
-
-        .input-group input::placeholder {
-            color: #adb5bd;
-            font-weight: 400;
-        }
-
-        .search-btn {
-            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
-            color: white;
-            border: none;
-            padding: 16px 40px;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-            box-shadow: 0 4px 15px rgba(78, 115, 223, 0.3);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .search-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
-            background: linear-gradient(135deg, #3c63d2 0%, #1e40af 100%);
-        }
-
-        .search-btn:active {
-            transform: translateY(-1px);
-            box-shadow: 0 3px 10px rgba(78, 115, 223, 0.3);
-        }
-
-
-        .results-section {
-            margin-top: 40px;
-        }
-
-        .results-section h3 {
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 25px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .results-section h3::before {
-            content: '';
-            display: block;
-            width: 4px;
-            height: 24px;
-            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
-            border-radius: 2px;
-        }
-
-        .result-card {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 0;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-            overflow: hidden;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .result-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Estilo especial para agendamentos rejeitados ou cancelados */
-        .result-card.rejected-card {
-            border: 4px solid #dc3545;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
-        }
-
-        .result-card.rejected-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
-            border-color: #c82333;
-        }
-
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 24px;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .action-btn {
+            top: 20px;
+            right: 20px;
+            background: rgba(220, 38, 38, 0.1);
+            color: #dc2626;
+            border: 2px solid rgba(220, 38, 38, 0.2);
+            border-radius: 8px;
             padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
             font-size: 0.85rem;
             font-weight: 600;
             cursor: pointer;
@@ -298,42 +100,344 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
+            z-index: 10;
         }
 
-        .conference-btn {
-            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
+        .logout-btn-top:hover {
+            background: rgba(220, 38, 38, 0.15);
+            border-color: rgba(220, 38, 38, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .verification-header {
+            text-align: center;
+            margin-bottom: 32px;
+            flex-shrink: 0;
+        }
+
+        .verification-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1e3a8a;
+            margin: 0 0 8px 0;
+        }
+
+        .verification-subtitle {
+            color: #64748b;
+            font-size: 1rem;
+            margin: 0;
+        }
+
+
+
+        .verification-form {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-bottom: 24px;
+            min-height: 0;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        .form-group label i {
+            margin-right: 8px;
+            font-size: 0.9rem;
+            color: #2563eb;
+        }
+
+        .input-container {
+            position: relative;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .input-container input {
+            width: 100%;
+            padding: 16px 20px 16px 48px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #ffffff;
+            color: #374151;
+            box-sizing: border-box;
+            font-weight: 500;
+        }
+
+        .input-container input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            outline: none;
+        }
+
+        .input-container input::placeholder {
+            color: #9ca3af;
+            font-weight: 400;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            font-size: 1rem;
+            transition: color 0.3s ease;
+        }
+
+        .input-container:focus-within .input-icon {
+            color: #2563eb;
+        }
+
+        .verification-btn {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto 16px auto;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
             color: white;
-            box-shadow: 0 2px 4px rgba(78, 115, 223, 0.3);
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
         }
 
-        .conference-btn:hover {
-            background: linear-gradient(135deg, #3c63d2 0%, #1e40af 100%);
+        .verification-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .verification-btn:hover::before {
+            left: 100%;
+        }
+
+        .verification-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(78, 115, 223, 0.4);
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
         }
 
-        .conference-btn:active {
+        .verification-btn:active {
             transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(78, 115, 223, 0.3);
+        }
+
+        .verification-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-text {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .verification-footer {
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+            flex-shrink: 0;
+        }
+
+
+        .error-message {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-top: 16px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.1);
+            animation: shake 0.3s ease-in-out;
+            position: relative;
+        }
+
+        .error-message::before {
+            content: '⚠️';
+            margin-right: 8px;
+        }
+
+        .success-message {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-top: 16px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.1);
+            animation: slideIn 0.3s ease-out;
+            position: relative;
+        }
+
+        .success-message::before {
+            content: '✅';
+            margin-right: 8px;
+        }
+
+        .result-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 24px;
+            display: none;
+            position: relative;
+            width: 100%;
+            z-index: 1000;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
         }
 
         .result-title {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             font-weight: 600;
-            color: #333;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            color: #1e293b;
+            margin: 0 0 12px 0;
         }
 
-        .result-title i {
-            color: #4e73df;
+        .result-content {
+            color: #64748b;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* Estilos para os resultados */
+        .search-summary {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .summary-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .summary-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .summary-value {
+            color: #1f2937;
+            font-weight: 500;
+        }
+
+        .status-success {
+            color: #16a34a !important;
+            font-weight: 600;
+        }
+
+        .scroll-hint {
+            text-align: center;
+            color: #2563eb;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-top: 12px;
+            padding: 8px;
+            background: rgba(37, 99, 235, 0.1);
+            border-radius: 8px;
+            animation: bounce 2s infinite;
+        }
+
+        .scroll-hint i {
+            margin-right: 8px;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-3px);
+            }
+            60% {
+                transform: translateY(-2px);
+            }
+        }
+
+        .agendamento-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .agendamento-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .agendamento-header {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .agendamento-header h4 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 1.1rem;
+            font-weight: 600;
         }
 
         .status-badge {
-            padding: 6px 14px;
+            color: white;
+            padding: 4px 12px;
             border-radius: 20px;
             font-size: 0.8rem;
             font-weight: 600;
@@ -341,357 +445,144 @@
             letter-spacing: 0.5px;
         }
 
-        .status-solicitado { 
-            background: #fff3cd; 
-            color: #856404; 
-            border: 3px solid #b8860b;
-        }
-        .status-agendado { 
-            background: #d4edda; 
-            color: #155724; 
-            border: 3px solid #0f3e0f;
-        }
-        .status-conferencia { 
-            background: #cce5ff; 
-            color: #004085; 
-            border: 3px solid #002952;
-        }
-        .status-contestado { 
-            background: #f8d7da; 
-            color: #721c24; 
-            border: 3px solid #4a1216;
-        }
-        .status-recusado { 
-            background: #f8d7da; 
-            color: #721c24; 
-            border: 3px solid #4a1216;
-        }
-        .status-cancelado { 
-            background: #e2e3e5; 
-            color: #383d41; 
-            border: 3px solid #1e2124;
-        }
-        .status-tratativa { 
-            background: #ffe6cc; 
-            color: #cc4400; 
-            border: 3px solid #992200;
-        }
-        .status-estoque { 
-            background: #d1ecf1; 
-            color: #0c5460; 
-            border: 3px solid #083438;
-        }
-        .status-cancelar { 
-            background: #f5c6cb; 
-            color: #721c24; 
-            border: 3px solid #4a1216;
+        .agendamento-details {
+            padding: 16px;
         }
 
-        /* Seções do Card */
-        .card-section {
-            border-bottom: 1px solid #f0f0f0;
+        .detail-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 12px;
         }
 
-        .card-section:last-child {
-            border-bottom: none;
+        .detail-row:last-child {
+            margin-bottom: 0;
         }
 
-        .section-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 16px 24px 12px;
-            background: #fafbfc;
-            font-weight: 600;
-            font-size: 0.95rem;
-            color: #495057;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .detail-row.three-columns {
+            grid-template-columns: repeat(3, 1fr);
         }
 
-        .section-header i {
-            color: #4e73df;
-            font-size: 1rem;
-        }
-
-        .section-content {
-            padding: 16px 24px 20px;
+        .detail-row.four-columns {
+            grid-template-columns: repeat(4, 1fr);
         }
 
         .detail-item {
             display: flex;
             flex-direction: column;
-            margin-bottom: 12px;
+            gap: 4px;
+            min-width: 0;
         }
 
-        .detail-item:last-child {
-            margin-bottom: 0;
+        .detail-item.full-width {
+            grid-column: 1 / -1;
         }
 
         .detail-label {
             font-size: 0.8rem;
-            color: #6c757d;
-            margin-bottom: 4px;
-            font-weight: 500;
+            font-weight: 600;
+            color: #6b7280;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.5px;
         }
 
         .detail-value {
-            font-size: 1rem;
-            color: #333;
+            font-size: 0.95rem;
+            color: #1f2937;
             font-weight: 500;
         }
 
-        .date-value {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #495057;
-        }
-
-        .date-value i {
-            color: #4e73df;
-        }
-
-        /* Grid de quantidades */
-        .quantities-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .quantity-item {
-            text-align: center;
-            padding: 12px;
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            color: #495057;
-            transition: all 0.2s ease;
-        }
-
-        .quantity-item:hover {
-            background: #e9ecef;
-            border-color: #dee2e6;
-        }
-
-        .quantity-number {
-            font-size: 1.4rem;
-            font-weight: bold;
-            margin-bottom: 4px;
-            color: #333;
-        }
-
-        .quantity-label {
-            font-size: 0.75rem;
-            color: #6c757d;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            font-weight: 500;
-        }
-
-        /* Observações */
-        .observations-text {
-            background: #f8f9fa;
-            padding: 12px 16px;
-            border-radius: 8px;
-            border-left: 4px solid #4e73df;
-            font-style: italic;
-            color: #495057;
-            line-height: 1.5;
-        }
-
-        /* Informações do Cliente */
-        .client-info {
-            font-size: 0.95rem !important;
-        }
-
-        .client-details {
-            line-height: 1.4;
-        }
-
-        .client-main {
-            margin-bottom: 4px;
-        }
-
-        .client-main strong {
-            color: #333;
-        }
-
-        .client-cnpj {
+        .detail-value.nfe-key {
             font-family: 'Courier New', monospace;
-            background: #f8f9fa;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            border: 1px solid #e9ecef;
-        }
-
-        .client-secondary {
-            color: #6c757d;
-            margin-bottom: 2px;
-        }
-
-        .client-number {
-            color: #6c757d;
-        }
-
-        .no-results {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(78, 115, 223, 0.2);
-            border-top: 4px solid #4e73df;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        .loading-text {
-            color: #4e73df;
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin: 0;
-        }
-
-        .loading-dots {
-            color: #1e3a8a;
-            font-size: 1.2rem;
-            animation: dots 1.5s infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .logout-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
+            font-size: 0.85rem;
+            word-break: break-all;
+            background: #f3f4f6;
+            padding: 8px;
             border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .logout-btn:hover {
-            background: #c82333;
+            border: 1px solid #e5e7eb;
         }
 
 
-        /* Estilo específico para o campo da chave NFe */
-        .nfe-key-item {
-            margin-bottom: 0 !important;
+        /* Responsividade para mobile */
+        @media (max-width: 1200px) {
+            .detail-row.four-columns {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .detail-row.three-columns {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
-        .nfe-key-input {
-            width: 100%;
-            padding: 12px 16px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            background: #f8f9fa;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            color: #495057;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            word-spacing: 1px;
-            letter-spacing: 0.3px;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+        @media (max-width: 768px) {
+            .verification-container {
+                padding: 12px;
+            }
+            
+            .verification-card {
+                width: 90%;
+                padding: 24px 20px;
+            }
+            
+            .logout-btn-top {
+                top: 15px;
+                right: 15px;
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .user-name-top {
+                top: 15px;
+                left: 15px;
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .detail-row,
+            .detail-row.four-columns,
+            .detail-row.three-columns {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .agendamento-header {
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+            
+            .summary-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
         }
 
-        .nfe-key-input:hover {
-            background: white;
-            border-color: #667eea;
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.15);
-            transform: translateY(-1px);
+        @media (max-width: 480px) {
+            .agendamento-details {
+                padding: 12px;
+            }
+            
+            .detail-label {
+                font-size: 0.75rem;
+            }
+            
+            .detail-value {
+                font-size: 0.9rem;
+            }
         }
 
-        .nfe-key-input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
-            background: white;
-            transform: translateY(-1px);
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
         }
 
-        .nfe-key-input:active {
-            background: white;
-            transform: translateY(0);
-        }
-
-        /* Botão Scroll to Top */
-        .scroll-to-top {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            box-shadow: 0 4px 12px rgba(78, 115, 223, 0.3);
-            transition: all 0.3s ease;
-            z-index: 1000;
-        }
-
-        .scroll-to-top:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
-            background: linear-gradient(135deg, #1e3a8a 0%, #4e73df 100%);
-        }
-
-        .scroll-to-top:active {
-            transform: translateY(0);
-        }
-
-        .scroll-to-top.show {
-            display: flex;
-            animation: fadeInUp 0.3s ease;
-        }
-
-        @keyframes fadeInUp {
+        @keyframes slideIn {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(20px);
             }
             to {
                 opacity: 1;
@@ -701,502 +592,156 @@
 
         /* Responsividade */
         @media (max-width: 768px) {
-            .content-area {
-                padding: 20px 15px;
+            .verification-container {
+                padding: 16px;
             }
-
-            .container {
-                padding: 25px;
-                border-radius: 12px;
+            
+            .verification-card {
+                padding: 32px 24px;
+                max-width: none;
+                margin: 0;
+                max-height: 95vh;
             }
-
-            .header h1 {
-                font-size: 1.8rem;
+            
+            .verification-title {
+                font-size: 1.5rem;
             }
-
-            .search-section {
-                padding: 20px;
-            }
-
-            .help-btn {
-                width: 32px;
-                height: 32px;
-                font-size: 0.9rem;
-                right: -5px;
-            }
-
-            .input-group input {
-                padding: 12px 15px;
-                font-size: 16px;
-            }
-
-            .search-btn {
-                padding: 14px 30px;
-                font-size: 15px;
-            }
-
-            .result-card {
-                margin-bottom: 16px;
-            }
-
-            .result-header {
-                padding: 16px 18px;
+            
+            .action-buttons {
                 flex-direction: column;
-                gap: 12px;
-                align-items: flex-start;
             }
-
-            .header-actions {
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .result-title {
-                font-size: 1.1rem;
-            }
-
-            .action-btn {
-                font-size: 0.75rem;
-                padding: 6px 12px;
-            }
-
-            .help-modal-content {
-                margin: 10px;
-                height: 95vh;
-                max-width: calc(100% - 20px);
-            }
-
-            .help-modal-body {
-                padding: 20px;
-            }
-
-            .help-section h4 {
-                font-size: 1.1rem;
-                margin-bottom: 15px;
-            }
-
-            .help-section li {
-                font-size: 0.9rem;
-                margin-bottom: 12px;
-            }
-
-            .top-bar {
-                padding: 12px 20px;
-            }
-
-            .user-info {
-                font-size: 13px;
-                padding: 6px 12px;
-            }
-
-            .logout-btn {
-                font-size: 13px;
-                padding: 6px 12px;
-            }
-        }
-
-            .section-header {
-                padding: 12px 18px 8px;
+            
+            .user-name {
+                top: 16px;
+                left: 16px;
+                padding: 10px 14px;
                 font-size: 0.9rem;
             }
+        }
 
-            .section-content {
-                padding: 12px 18px 16px;
+        @media (max-width: 480px) {
+            .verification-container {
+                padding: 12px;
             }
-
-            .quantities-grid {
-                grid-template-columns: 1fr;
-                gap: 12px;
+            
+            .verification-card {
+                padding: 24px 20px;
+                max-height: 98vh;
             }
-
-            .quantity-item {
-                padding: 10px;
+            
+            .verification-title {
+                font-size: 1.3rem;
             }
-
-            .quantity-number {
-                font-size: 1.2rem;
+            
+            .input-container input {
+                padding: 14px 16px 14px 44px;
+                font-size: 0.95rem;
             }
-        }
-
-        /* Estilo para quantidade clicável */
-        .quantity-clickable {
-            cursor: pointer;
-            position: relative;
-            transition: all 0.3s ease;
-        }
-
-        .quantity-clickable:hover {
-            background: #dee2e6 !important;
-            border-color: #4e73df !important;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(78, 115, 223, 0.15);
-        }
-
-        .quantity-hint {
-            font-size: 0.65rem;
-            color: #6c757d;
-            margin-top: 4px;
-            opacity: 0.8;
-            transition: opacity 0.3s ease;
-        }
-
-        .quantity-clickable:hover .quantity-hint {
-            opacity: 1;
-            color: #495057;
-        }
-
-        /* Modal de Produtos */
-        .products-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .products-modal-content {
-            background: white;
-            border-radius: 12px;
-            max-width: 90%;
-            max-height: 90%;
-            width: 1000px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .products-modal-header {
-            background: linear-gradient(135deg, #4e73df 0%, #1e3a8a 100%);
-            color: white;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .products-modal-header h3 {
-            margin: 0;
-            font-size: 1.3rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .products-modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 50%;
-            transition: background 0.3s ease;
-        }
-
-        .products-modal-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .products-modal-body {
-            padding: 20px;
-            max-height: 70vh;
-            overflow-y: auto;
-        }
-
-        /* Tabela de produtos do modal */
-        .products-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-
-        .products-table th,
-        .products-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .products-table th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .products-table td {
-            color: #333;
-            font-size: 0.9rem;
-        }
-
-        .products-table tr:hover {
-            background: #f8f9fa;
-        }
-
-        .products-table .product-code {
-            font-family: 'Courier New', monospace;
-            background: #f8f9fa;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-        }
-
-        .products-table .product-quantity {
-            font-weight: 600;
-            color: #4e73df;
-        }
-
-        .products-table .product-value {
-            font-weight: 600;
-            color: #28a745;
-        }
-
-        .no-products {
-            text-align: center;
-            padding: 40px;
-            color: #6c757d;
-        }
-
-        .no-products i {
-            font-size: 3rem;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-
-        /* Modal de Ajuda */
-        .help-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1001;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .help-modal-content {
-            background: white;
-            border-radius: 12px;
-            max-width: 600px;
-            height: 95vh;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            animation: slideIn 0.3s ease;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .help-modal-header {
-            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-            color: white;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .help-modal-header h3 {
-            margin: 0;
-            font-size: 1.3rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .help-modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 50%;
-            transition: background 0.3s ease;
-        }
-
-        .help-modal-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .help-modal-body {
-            padding: 30px;
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .help-section {
-            margin-bottom: 40px;
-            flex: 1;
-        }
-
-        .help-section:last-child {
-            margin-bottom: 0;
-        }
-
-        .help-section h4 {
-            color: #495057;
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .help-section h4 i {
-            color: #4e73df;
-            font-size: 1.2rem;
-        }
-
-        .help-section ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            flex: 1;
-        }
-
-        .help-section li {
-            margin-bottom: 16px;
-            padding-left: 25px;
-            position: relative;
-            line-height: 1.6;
-            color: #333;
-            font-size: 1rem;
-        }
-
-        .help-section li:before {
-            content: "▸";
-            color: #4e73df;
-            font-weight: bold;
-            position: absolute;
-            left: 0;
-        }
-
-        .help-section li strong {
-            color: #495057;
+            
+            .verification-btn {
+                padding: 14px 20px;
+                font-size: 0.95rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="main-layout">
-        <div class="top-bar">
-            <div class="user-info" id="userInfo">
-                Carregando...
-            </div>
-            <button class="logout-btn" onclick="logout()">Sair</button>
-        </div>
-
-        <div class="content-area">
-            <div class="container">
-        <div class="header">
-            <div class="header-content">
-                <h1>Verificação de Agendamentos</h1>
-                <button class="help-btn" onclick="openHelpModal()" title="Como usar esta página">
-                    <i class="fas fa-question-circle"></i>
-                </button>
+    <div class="verification-container">
+        <!-- Background com animações -->
+        <div class="login-bg">
+            <div class="bg-pattern"></div>
+            <div class="floating-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
+                <div class="shape shape-3"></div>
+                <div class="shape shape-4"></div>
             </div>
         </div>
 
-        <div class="search-section">
-            <div class="input-group">
-                <label for="searchInput">Chave de NFe ou Número da NFe:</label>
-                <input type="text" id="searchInput" placeholder="Digite a chave de NFe ou número da NFe...">
+        <!-- Card principal -->
+        <div class="verification-card">
+            <!-- Nome do usuário no canto superior esquerdo -->
+            <div class="user-name-top" id="userNameTop">
+                <i class="fas fa-user-circle"></i>
+                <span>Carregando...</span>
             </div>
-            <button class="search-btn" onclick="searchSchedule()">Buscar Agendamento</button>
-        </div>
-
-        <div class="results-section" id="resultsSection" style="display: none;">
-            <h3>Resultados:</h3>
-            <div id="resultsContainer"></div>
-        </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Produtos -->
-    <div id="productsModal" class="products-modal" style="display: none;">
-        <div class="products-modal-content">
-            <div class="products-modal-header">
-                <h3><i class="fas fa-boxes"></i> Produtos do Agendamento</h3>
-                <button class="products-modal-close" onclick="closeProductsModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="products-modal-body">
-                <div id="productsTableContainer">
-                    <!-- Tabela de produtos será inserida aqui -->
+            
+            <!-- Botão Sair no canto superior direito -->
+            <button class="logout-btn-top" onclick="handleLogout()">
+                <i class="fas fa-sign-out-alt"></i>
+                Sair
+            </button>
+            
+            <div class="verification-header">
+                <div class="logo-container">
+                    <div class="logo-box">
+                        <img src="/src/assets/images/logo.png" alt="Logo Mercocamp" class="logo-img">
+                        <div class="logo-shine"></div>
+                    </div>
+                    <div class="logo-texts">
+                        <h1 class="logo-title">Mercocamp</h1>
+                        <p class="logo-subtitle">Sistema de Agendamento</p>
+                    </div>
                 </div>
+                <h2 class="verification-title">Verificação de Agendamentos</h2>
+                <p class="verification-subtitle">Insira a nota fiscal ou chave de acesso para verificar</p>
             </div>
-        </div>
-    </div>
 
-    <!-- Botão Scroll to Top -->
-    <button id="scrollToTop" class="scroll-to-top" onclick="scrollToTop()" title="Voltar ao topo">
-        <i class="fas fa-chevron-up"></i>
-    </button>
 
-    <!-- Modal de Ajuda -->
-    <div id="helpModal" class="help-modal" style="display: none;">
-        <div class="help-modal-content">
-            <div class="help-modal-header">
-                <h3><i class="fas fa-question-circle"></i> Como usar esta página</h3>
-                <button class="help-modal-close" onclick="closeHelpModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="help-modal-body">
-                <div class="help-section">
-                    <h4><i class="fas fa-search"></i> Como buscar agendamentos</h4>
-                    <ul>
-                        <li><strong>Chave de NFe:</strong> Digite 44 ou mais dígitos (espaços e letras serão removidos automaticamente)</li>
-                        <li><strong>Número da NFe:</strong> Digite menos de 44 dígitos para buscar pelo número</li>
-                    </ul>
+
+            <!-- Formulário de verificação -->
+            <form id="verificationForm" class="verification-form">
+                <div class="form-group">
+                    <label for="nfInput">
+                        <i class="fas fa-file-invoice"></i>
+                        <span>Nota Fiscal / Chave de Acesso</span>
+                    </label>
+                    <div class="input-container">
+                        <input 
+                            type="text" 
+                            id="nfInput" 
+                            name="nfInput" 
+                            placeholder="Digite o número da NF ou chave de acesso" 
+                            required
+                            maxlength="44"
+                        >
+                        <div class="input-icon">
+                            <i class="fas fa-search"></i>
+                        </div>
+                    </div>
                 </div>
+
+                <button type="submit" class="verification-btn" id="verificationBtn">
+                    <span class="btn-text">
+                        <i class="fas fa-search"></i>
+                        Verificar Agendamento
+                    </span>
+                    <span class="btn-loading" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Verificando...
+                    </span>
+                </button>
+
+                <div id="verificationError" class="error-message" style="display: none;"></div>
+                <div id="verificationSuccess" class="success-message" style="display: none;"></div>
                 
-                <div class="help-section">
-                    <h4><i class="fas fa-info-circle"></i> Informações exibidas</h4>
-                    <ul>
-                        <li><strong>Cliente:</strong> Nome, número e CNPJ do estoque selecionado pelo usuário</li>
-                        <li><strong>Chave NFe:</strong> Clique no campo para selecionar e copiar</li>
-                        <li><strong>Produtos:</strong> Clique na quantidade para ver lista detalhada</li>
-                        <li><strong>Status:</strong> Situação atual do agendamento</li>
-                    </ul>
+                <!-- Resultado da verificação -->
+                <div id="resultBox" class="result-box">
+                    <h3 class="result-title">
+                        <i class="fas fa-clipboard-check"></i>
+                        Resultado da Verificação
+                    </h3>
+                    <div class="result-content" id="resultContent">
+                        <!-- Conteúdo do resultado será inserido aqui -->
+                    </div>
                 </div>
-                
-                <div class="help-section">
-                    <h4><i class="fas fa-cogs"></i> Ações disponíveis</h4>
-                    <ul>
-                        <li><strong>Em Conferência:</strong> Botão para alterar status do agendamento</li>
-                        <li><strong>Ver Produtos:</strong> Modal com detalhes de todos os produtos</li>
-                        <li><strong>Copiar Chave:</strong> Campo clicável para selecionar a chave NFe</li>
-                    </ul>
+            </form>
+
+            <!-- Footer -->
+            <div class="verification-footer">
+                <div class="footer-text">
+                    <p>&copy; 2025 Mercocamp - Todos os direitos reservados</p>
+                    <p class="version">v2.1.0</p>
                 </div>
             </div>
         </div>
@@ -1204,530 +749,366 @@
 
     <script>
         // Configuração da API
-        const API_BASE_URL = 'https://schedule-mercocamp-back-end.up.railway.app/api';
-        let authToken = null;
+        const API_BASE_URL = 'http://localhost:4000/api';
 
-        // Verificar autenticação ao carregar a página
-        document.addEventListener('DOMContentLoaded', function() {
-            checkAuthentication();
+        // Elementos DOM
+        const verificationForm = document.getElementById('verificationForm');
+        const verificationBtn = document.getElementById('verificationBtn');
+        const btnText = document.querySelector('.btn-text');
+        const btnLoading = document.querySelector('.btn-loading');
+        const errorDiv = document.getElementById('verificationError');
+        const successDiv = document.getElementById('verificationSuccess');
+        const resultBox = document.getElementById('resultBox');
+        const resultContent = document.getElementById('resultContent');
+        const nfInput = document.getElementById('nfInput');
+
+        // Prevenir zoom em dispositivos móveis (mantém scroll)
+        document.addEventListener('gesturestart', function(e) {
+            e.preventDefault();
         });
 
-        // Verificar se o usuário está autenticado e tem nível 9
-        async function checkAuthentication() {
-            // Tentar obter token de diferentes lugares do localStorage
-            let token = localStorage.getItem('authToken') || localStorage.getItem('token');
+        document.addEventListener('gesturechange', function(e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('gestureend', function(e) {
+            e.preventDefault();
+        });
+
+        // Verificar autenticação e carregar dados do usuário
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            const userData = localStorage.getItem('user');
             
-            if (!token) {
-                redirectToLogin();
+            if (!token || !userData) {
+                window.location.href = '/login.html';
                 return;
             }
 
             try {
-                const response = await fetch(`${API_BASE_URL}/auth/verify`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error('Token inválido');
-                }
-
-                const data = await response.json();
+                const user = JSON.parse(userData);
                 
-                if (data.user.level_access !== 9) {
-                    alert('Acesso negado. Esta página é exclusiva para usuários nível 9.');
-                    // Redirecionar para dashboard se não for nível 9
-                    window.location.href = 'index.html';
+                // Verificar se o usuário tem nível 9 (verificação)
+                if (user.level_access !== 9) {
+                    alert('Acesso negado. Esta página é exclusiva para usuários de verificação.');
+                    window.location.href = '/';
                     return;
                 }
 
-                authToken = token;
-                updateUserInfo(data.user);
-                
+                // Atualizar nome do usuário no elemento já existente
+                const userNameElement = document.getElementById('userNameTop');
+                if (userNameElement) {
+                    userNameElement.querySelector('span').textContent = user.user || user.name || 'Usuário';
+                }
+
+                // Focar no input
+                nfInput.focus();
+
             } catch (error) {
-                console.error('Erro na verificação:', error);
-                redirectToLogin();
+                console.error('Erro ao carregar dados do usuário:', error);
+                window.location.href = '/login.html';
             }
-        }
+        });
 
-        // Atualizar informações do usuário
-        function updateUserInfo(user) {
-            const userInfo = document.getElementById('userInfo');
-            userInfo.textContent = user.name;
-        }
-
-        // Redirecionar para login
-        function redirectToLogin() {
-            localStorage.removeItem('authToken');
-            window.location.href = 'login.html';
-        }
-
-        // Logout
-        function logout() {
-            // Confirmar logout
-            if (confirm('Tem certeza que deseja sair?')) {
-                // Limpar todos os dados de sessão
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                
-                // Redirecionar para login
-                window.location.href = 'login.html';
-            }
-        }
-
-        // Buscar agendamento
-        async function searchSchedule() {
-            const input = document.getElementById('searchInput').value.trim();
+        // Manipulador do formulário de verificação
+        verificationForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
             
-            if (!input) {
-                alert('Por favor, digite uma chave de NFe ou número da NFe.');
+            const nfValue = nfInput.value.trim();
+            
+            // Validação básica
+            if (!nfValue) {
+                showError('Por favor, insira a nota fiscal ou chave de acesso');
                 return;
             }
 
-            showLoading();
+            // Validação básica - aceitar qualquer entrada não vazia com pelo menos 1 caractere
+            if (nfValue.length < 1) {
+                showError('Por favor, insira um valor para busca');
+                return;
+            }
+            
+            // Mostrar loading
+            setLoadingState(true);
+            hideMessages();
+            
+            try {
+                console.log('Iniciando verificação...', { nfValue, api: API_BASE_URL });
+                
+                // Chamar a função real de verificação
+                await performVerification(nfValue);
+                
+            } catch (error) {
+                console.error('Erro na verificação:', error);
+                showError('Erro ao realizar verificação. Tente novamente.');
+            } finally {
+                // Esconder loading
+                setLoadingState(false);
+            }
+        });
+
+        // Função real de verificação usando a API
+        async function performVerification(nfValue) {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                showError('Token de autenticação não encontrado. Faça login novamente.');
+                window.location.href = '/login.html';
+                return;
+            }
 
             try {
                 const response = await fetch(`${API_BASE_URL}/schedule-verification/search`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ input: input })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'Erro na busca');
-                }
-
-                displayResults(data);
-
-            } catch (error) {
-                console.error('Erro na busca:', error);
-                showError(error.message);
-            }
-        }
-
-        // Mostrar loading
-        function showLoading() {
-            const resultsSection = document.getElementById('resultsSection');
-            const resultsContainer = document.getElementById('resultsContainer');
-            
-            resultsContainer.innerHTML = `
-                <div class="loading">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">Buscando agendamentos<span class="loading-dots">...</span></div>
-                </div>
-            `;
-            resultsSection.style.display = 'block';
-        }
-
-        // Mostrar erro
-        function showError(message) {
-            const resultsContainer = document.getElementById('resultsContainer');
-            resultsContainer.innerHTML = `<div class="error">Erro: ${message}</div>`;
-        }
-
-        // Exibir resultados
-        function displayResults(data) {
-            const resultsContainer = document.getElementById('resultsContainer');
-            
-            if (data.results.length === 0) {
-                resultsContainer.innerHTML = '<div class="no-results">Nenhum agendamento encontrado.</div>';
-                return;
-            }
-
-            let html = `<p><strong>Tipo de busca:</strong> ${data.searchType === 'nfe_key' ? 'Chave de NFe' : 'Número da NFe'}</p>`;
-            html += `<p><strong>Valor buscado:</strong> ${data.searchValue}</p><br>`;
-
-            data.results.forEach(schedule => {
-                html += createResultCard(schedule);
-            });
-
-            resultsContainer.innerHTML = html;
-        }
-
-        // Criar card de resultado
-        function createResultCard(schedule) {
-            const statusClass = `status-${schedule.status.toLowerCase().replace(' ', '-')}`;
-            const cardClass = (schedule.status === 'Recusar' || schedule.status === 'Cancelar') ? 'result-card rejected-card' : 'result-card';
-            
-            return `
-                <div class="${cardClass}">
-                    <div class="result-header">
-                        <div class="result-title">
-                            <i class="fas fa-file-invoice"></i>
-                            NF-e ${schedule.info?.number || schedule.number}
-                        </div>
-                        <div class="header-actions">
-                            ${schedule.status !== 'Conferência' && schedule.status !== 'Estoque' && schedule.status !== 'Cancelado' && schedule.status !== 'Recusado' ? `
-                                <button class="action-btn conference-btn" onclick="changeStatusToConference(${schedule.id}, '${schedule.number}')" title="Marcar como Em Conferência">
-                                    <i class="fas fa-clipboard-check"></i>
-                                    Em Conferência
-                                </button>
-                            ` : ''}
-                            <div class="status-badge ${statusClass}">${schedule.status}</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Seção: Identificação -->
-                    <div class="card-section">
-                        <div class="section-header">
-                            <i class="fas fa-id-card"></i>
-                            <span>Identificação</span>
-                        </div>
-                        <div class="section-content">
-                            <div class="detail-item">
-                                <div class="detail-label">ID do Sistema</div>
-                                <div class="detail-value">${schedule.id}</div>
-                            </div>
-                            <div class="detail-item nfe-key-item">
-                                <div class="detail-label">Chave da NF-e</div>
-                                <input type="text" class="nfe-key-input" value="${schedule.nfe_key}" readonly onclick="this.select()" title="Clique para selecionar a chave">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Seção: Informações da Entrega -->
-                    <div class="card-section">
-                        <div class="section-header">
-                            <i class="fas fa-truck"></i>
-                            <span>Informações da Entrega</span>
-                        </div>
-                        <div class="section-content">
-                            <div class="detail-item">
-                                <div class="detail-label">Cliente</div>
-                                <div class="detail-value client-info">
-                                    ${formatClientInfo(schedule)}
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Fornecedor</div>
-                                <div class="detail-value">${schedule.supplier || 'Não informado'}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Data de Entrega</div>
-                                <div class="detail-value date-value">
-                                    <i class="fas fa-calendar-alt"></i>
-                                    ${formatDate(schedule.date)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Seção: Quantidades -->
-                    <div class="card-section">
-                        <div class="section-header">
-                            <i class="fas fa-boxes"></i>
-                            <span>Quantidades</span>
-                        </div>
-                        <div class="section-content quantities-grid">
-                            <div class="quantity-item">
-                                <div class="quantity-number">${schedule.case_count}</div>
-                                <div class="quantity-label">Volumes/Caixas</div>
-                            </div>
-                            <div class="quantity-item quantity-clickable" onclick="openProductsModal(${JSON.stringify(schedule).replace(/"/g, '&quot;')})">
-                                <div class="quantity-number">${schedule.qt_prod}</div>
-                                <div class="quantity-label">Produtos</div>
-                                <div class="quantity-hint"><i class="fas fa-eye"></i> Clique para ver detalhes</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    ${schedule.observations ? `
-                    <!-- Seção: Observações -->
-                    <div class="card-section">
-                        <div class="section-header">
-                            <i class="fas fa-sticky-note"></i>
-                            <span>Observações</span>
-                        </div>
-                        <div class="section-content">
-                            <div class="observations-text">
-                                ${schedule.observations}
-                            </div>
-                        </div>
-                    </div>
-                    ` : ''}
-                </div>
-            `;
-        }
-
-        // Formatar informações do cliente usando dados da tabela wcl do banco dbmercocamp
-        function formatClientInfo(schedule) {
-            if (!schedule) return 'Não informado';
-            
-            // Extrair informações do estoque escolhido pelo usuário (da tabela wcl do banco dbmercocamp)
-            const clientName = schedule.client_info?.name;     // nome_cliente da tabela wcl
-            const clientNumber = schedule.client_info?.number; // no_seq da tabela wcl  
-            const clientCnpj = schedule.client_info?.cnpj || schedule.client; // cnpj_cpf da tabela wcl
-            
-            let html = '<div class="client-details">';
-            
-            // Nome do cliente (principal)
-            if (clientName && clientName.trim() !== '') {
-                html += `<div class="client-main"><strong>${clientName}</strong></div>`;
-            }
-            
-            // Informações secundárias (número e CNPJ)
-            let secondaryInfo = [];
-            
-            // Número do cliente (se disponível e diferente do CNPJ)
-            if (clientNumber && clientNumber !== clientCnpj) {
-                secondaryInfo.push(`Nº ${clientNumber}`);
-            }
-            
-            // CNPJ formatado (usar o que vier da tabela wcl, que já pode estar formatado)
-            if (clientCnpj) {
-                let formattedCnpj = clientCnpj;
-                // Se não estiver formatado, formatar
-                if (clientCnpj.length === 14 && /^\d+$/.test(clientCnpj)) {
-                    formattedCnpj = clientCnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-                } else if (clientCnpj.length === 11 && /^\d+$/.test(clientCnpj)) {
-                    formattedCnpj = clientCnpj.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-                }
-                secondaryInfo.push(`CNPJ: <span class="client-cnpj">${formattedCnpj}</span>`);
-            }
-            
-            // Adicionar informações secundárias
-            if (secondaryInfo.length > 0) {
-                html += '<div class="client-secondary">';
-                html += `<small>${secondaryInfo.join(' • ')}</small>`;
-                html += '</div>';
-            }
-            
-            html += '</div>';
-            
-            // Se não temos nenhuma informação útil, mostrar apenas CNPJ como fallback
-            if (!clientName && !clientNumber && !clientCnpj) {
-                return 'Informações do cliente não disponíveis';
-            }
-            
-            return html;
-        }
-
-        // Formatar data
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('pt-BR');
-        }
-
-        // Permitir busca com Enter
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchSchedule();
-            }
-        });
-
-        // Funções do Modal de Produtos
-        function openProductsModal(schedule) {
-            const modal = document.getElementById('productsModal');
-            const tableContainer = document.getElementById('productsTableContainer');
-            
-            // Buscar produtos do agendamento
-            const products = schedule.info?.products || [];
-            
-            if (products.length === 0) {
-                tableContainer.innerHTML = `
-                    <div class="no-products">
-                        <i class="fas fa-box-open"></i>
-                        <h4>Nenhum produto encontrado</h4>
-                        <p>Este agendamento não possui produtos cadastrados.</p>
-                    </div>
-                `;
-            } else {
-                // Criar tabela de produtos
-                let tableHTML = `
-                    <table class="products-table">
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Descrição</th>
-                                <th>Qt.</th>
-                                <th>Unidade</th>
-                                <th>Valor Unit.</th>
-                                <th>Valor Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                
-                products.forEach(product => {
-                    tableHTML += `
-                        <tr>
-                            <td><span class="product-code">${product.code || product.supplier_code || '-'}</span></td>
-                            <td>${product.description || product.supplier_description || '-'}</td>
-                            <td><span class="product-quantity">${product.quantity || 0}</span></td>
-                            <td>${product.unit || '-'}</td>
-                            <td class="product-value">${formatCurrency(product.unit_value || 0)}</td>
-                            <td class="product-value">${formatCurrency(product.total_value || 0)}</td>
-                        </tr>
-                    `;
-                });
-                
-                tableHTML += `
-                        </tbody>
-                    </table>
-                `;
-                
-                tableContainer.innerHTML = tableHTML;
-            }
-            
-            // Mostrar modal
-            modal.style.display = 'flex';
-            
-            // Adicionar evento para fechar com ESC
-            document.addEventListener('keydown', handleEscapeKey);
-            
-            // Prevenir scroll do body
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeProductsModal() {
-            const modal = document.getElementById('productsModal');
-            modal.style.display = 'none';
-            
-            // Remover evento ESC
-            document.removeEventListener('keydown', handleEscapeKey);
-            
-            // Restaurar scroll do body
-            document.body.style.overflow = 'auto';
-        }
-
-        function handleEscapeKey(event) {
-            if (event.key === 'Escape') {
-                closeProductsModal();
-            }
-        }
-
-        // Fechar modal clicando fora
-        document.addEventListener('click', function(event) {
-            const modal = document.getElementById('productsModal');
-            if (event.target === modal) {
-                closeProductsModal();
-            }
-        });
-
-        // Função auxiliar para formatar moeda (reutilizada)
-        function formatCurrency(value) {
-            if (!value || value === 0) return 'R$ 0,00';
-            return new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-            }).format(value);
-        }
-
-        // Funções do Modal de Ajuda
-        function openHelpModal() {
-            const modal = document.getElementById('helpModal');
-            modal.style.display = 'flex';
-            
-            // Adicionar evento para fechar com ESC
-            document.addEventListener('keydown', handleHelpEscapeKey);
-            
-            // Prevenir scroll do body
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeHelpModal() {
-            const modal = document.getElementById('helpModal');
-            modal.style.display = 'none';
-            
-            // Remover evento ESC
-            document.removeEventListener('keydown', handleHelpEscapeKey);
-            
-            // Restaurar scroll do body
-            document.body.style.overflow = 'auto';
-        }
-
-        function handleHelpEscapeKey(event) {
-            if (event.key === 'Escape') {
-                closeHelpModal();
-            }
-        }
-
-        // Fechar modal de ajuda clicando fora
-        document.addEventListener('click', function(event) {
-            const modal = document.getElementById('helpModal');
-            if (event.target === modal) {
-                closeHelpModal();
-            }
-        });
-
-        // Função para alterar status para "Em conferência"
-        async function changeStatusToConference(scheduleId, scheduleNumber) {
-            // Confirmar ação
-            if (!confirm(`Tem certeza que deseja alterar o status do agendamento NF-e ${scheduleNumber} para "Em Conferência"?`)) {
-                return;
-            }
-
-            try {
-                // Mostrar loading no botão
-                const button = event.target.closest('.conference-btn');
-                const originalContent = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Alterando...';
-                button.disabled = true;
-
-                const response = await fetch(`${API_BASE_URL}/schedule-verification/change-status`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        scheduleId: scheduleId,
-                        newStatus: 'Conferência',
-                        comment: 'Status alterado para Em Conferência via página de verificação'
+                        input: nfValue
                     })
                 });
 
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Erro ao alterar status');
+                    if (response.status === 401) {
+                        showError('Sessão expirada. Faça login novamente.');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        window.location.href = '/login.html';
+                        return;
+                    }
+                    
+                    showError(data.error || data.message || 'Erro ao realizar verificação');
+                    return;
                 }
 
-                // Sucesso - atualizar a página ou o card
-                alert(`Status do agendamento NF-e ${scheduleNumber} alterado para "Em Conferência" com sucesso!`);
-                
-                // Recarregar os resultados para mostrar o novo status
-                searchSchedule();
+                if (data.success && data.results && data.results.length > 0) {
+                    showSuccess('Verificação realizada com sucesso!');
+                    showResult({
+                        tipo: data.searchType === 'nfe_key' ? 'Chave de Acesso' : 'Número da NF',
+                        valor: data.searchValue,
+                        status: 'Encontrado',
+                        total_encontrados: data.results.length,
+                        agendamentos: data.results
+                    });
+                } else {
+                    showError('Nenhum agendamento encontrado para esta consulta');
+                }
 
             } catch (error) {
-                console.error('Erro ao alterar status:', error);
-                alert(`Erro ao alterar status: ${error.message}`);
-                
-                // Restaurar botão
-                if (button) {
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
+                console.error('Erro na verificação:', error);
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    showError('Erro de conexão. Verifique se o servidor está funcionando.');
+                } else {
+                    showError('Erro interno. Tente novamente mais tarde.');
                 }
             }
         }
 
-        // Função para scroll to top
-        function scrollToTop() {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
+        // Funções auxiliares
+        function setLoadingState(loading) {
+            if (loading) {
+                btnText.style.display = 'none';
+                btnLoading.style.display = 'inline-flex';
+                verificationBtn.disabled = true;
+                verificationForm.classList.add('form-loading');
+            } else {
+                btnText.style.display = 'inline-flex';
+                btnLoading.style.display = 'none';
+                verificationBtn.disabled = false;
+                verificationForm.classList.remove('form-loading');
+            }
         }
 
-        // Mostrar/esconder botão scroll to top baseado na posição da página
-        window.addEventListener('scroll', function() {
-            const scrollToTopBtn = document.getElementById('scrollToTop');
+        function showError(message) {
+            hideMessages();
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
             
-            if (window.pageYOffset > 300) {
-                scrollToTopBtn.classList.add('show');
-            } else {
-                scrollToTopBtn.classList.remove('show');
+            // Auto-hide após 8 segundos
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 8000);
+        }
+
+        function showSuccess(message) {
+            hideMessages();
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            
+            // Auto-hide após 5 segundos
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function hideMessages() {
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+        }
+
+        function showResult(data) {
+            let resultHtml = `
+                <div class="search-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">Tipo de Busca:</span>
+                        <span class="summary-value">${data.tipo}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Valor Pesquisado:</span>
+                        <span class="summary-value">${data.valor}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Status:</span>
+                        <span class="summary-value status-success">${data.status}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Total Encontrado:</span>
+                        <span class="summary-value">${data.total_encontrados} agendamento(s)</span>
+                    </div>
+                    ${data.total_encontrados > 1 ? `
+                        <div class="scroll-hint">
+                            <i class="fas fa-arrow-down"></i>
+                            Role para baixo para ver todos os agendamentos
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            // Exibir cada agendamento encontrado
+            data.agendamentos.forEach((agendamento, index) => {
+                const statusColor = getStatusColor(agendamento.status);
+                const clientInfo = agendamento.client_info || {};
+                
+                resultHtml += `
+                    <div class="agendamento-card">
+                        <div class="agendamento-header">
+                            <h4>${clientInfo.name || agendamento.client || 'Estoque não identificado'}</h4>
+                            <span class="status-badge" style="background-color: ${statusColor};">${agendamento.status}</span>
+                        </div>
+                        
+                        <div class="agendamento-details">
+                            <!-- Primeira linha: Informações básicas -->
+                            <div class="detail-row four-columns">
+                                <div class="detail-item">
+                                    <span class="detail-label">ID Agendamento:</span>
+                                    <span class="detail-value">${agendamento.id}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Número NF:</span>
+                                    <span class="detail-value">${agendamento.number || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Data Agendamento:</span>
+                                    <span class="detail-value">${new Date(agendamento.date).toLocaleDateString('pt-BR')}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Qtd Produtos:</span>
+                                    <span class="detail-value">${agendamento.qt_prod || 0}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Segunda linha: Cliente e fornecedor -->
+                            <div class="detail-row three-columns">
+                                <div class="detail-item">
+                                    <span class="detail-label">Cliente:</span>
+                                    <span class="detail-value">${clientInfo.name || agendamento.client}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">CNPJ Cliente:</span>
+                                    <span class="detail-value">${clientInfo.cnpj || agendamento.client_cnpj || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Número Cliente:</span>
+                                    <span class="detail-value">${clientInfo.number || 'N/A'}</span>
+                                </div>
+                            </div>
+                            
+                            ${agendamento.supplier ? `
+                                <div class="detail-row">
+                                    <div class="detail-item full-width">
+                                        <span class="detail-label">Fornecedor:</span>
+                                        <span class="detail-value">${agendamento.supplier}</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            
+                            ${agendamento.nfe_key ? `
+                                <div class="detail-row">
+                                    <div class="detail-item full-width">
+                                        <span class="detail-label">Chave NFe:</span>
+                                        <span class="detail-value nfe-key">${agendamento.nfe_key}</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${agendamento.observations ? `
+                                <div class="detail-row">
+                                    <div class="detail-item full-width">
+                                        <span class="detail-label">Observações:</span>
+                                        <span class="detail-value">${agendamento.observations}</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            resultContent.innerHTML = resultHtml;
+            resultBox.style.display = 'block';
+            
+            // Scroll suave para os resultados após um pequeno delay
+            setTimeout(() => {
+                resultBox.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }, 300);
+        }
+
+        function getStatusColor(status) {
+            // Status reais da aplicação com as cores corretas do dashboard
+            const statusColors = {
+                'Solicitado': '#ffc107',         // warning - amarelo
+                'Contestado': '#9333ea',         // contestado - roxo 
+                'Agendado': '#007bff',           // primary - azul
+                'Conferência': '#28a745',        // success - verde
+                'Recebido': '#28a745',           // success - verde (compatibilidade)
+                'Tratativa': '#dc3545',          // danger - vermelho
+                'Estoque': '#28a745',            // success - verde
+                'Recusar': '#dc3545',            // danger - vermelho
+                'Cancelar': '#ffc107',           // warning - amarelo
+                'Recusado': '#343a40',           // dark - cinza escuro
+                'Cancelado': '#6c757d'           // secondary - cinza
+            };
+            return statusColors[status] || '#6c757d'; // secondary como fallback
+        }
+
+        function handleLogout() {
+            const confirmed = confirm('Tem certeza que deseja sair?');
+            if (confirmed) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('authToken');
+                window.location.href = '/login.html';
             }
+        }
+
+        // Animações de entrada
+        document.addEventListener('DOMContentLoaded', function() {
+            const card = document.querySelector('.verification-card');
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(30px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.6s ease-out';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 100);
         });
     </script>
 </body>

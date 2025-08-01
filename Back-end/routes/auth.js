@@ -17,7 +17,7 @@ const authSchemas = {
   
   register: Joi.object({
     user: Joi.string().alphanum().min(3).max(30).required(),
-    password: Joi.string().min(6).required(),
+    password: Joi.string().min(4).required(),
     name: Joi.string().max(100).allow(null, ''),
     level_access: Joi.number().integer().min(0).max(4).required(),
     cli_access: Joi.object().default({})

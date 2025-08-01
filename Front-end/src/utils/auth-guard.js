@@ -33,7 +33,7 @@ class AuthGuard {
    */
   constructor() {
     // URL base da API de autenticação
-    this.apiBaseUrl = 'https://schedule-mercocamp-back-end.up.railway.app/api'
+    this.apiBaseUrl = 'http://localhost:4000/api'
     // Inicializa o sistema de proteção
     this.init()
   }
@@ -108,7 +108,7 @@ class AuthGuard {
     sessionStorage.setItem('redirectAfterLogin', window.location.href)
 
     // Redireciona para página de login
-    window.location.href = 'login.html'
+    window.location.href = '/login.html'
   }
 
   /**
@@ -359,7 +359,7 @@ class AuthGuard {
       localStorage.removeItem('rememberedUser')
 
       // Redireciona para login
-      window.location.href = 'login.html'
+      window.location.href = '/login.html'
     }
   }
 
@@ -426,7 +426,7 @@ class AuthenticatedApiClient {
    * Inicializa URL base da API
    */
   constructor() {
-    this.baseURL = 'https://schedule-mercocamp-back-end.up.railway.app/api'
+    this.baseURL = 'http://localhost:4000/api'
   }
 
   /**
@@ -461,7 +461,7 @@ class AuthenticatedApiClient {
     if (response.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      window.location.href = 'login.html'
+      window.location.href = '/login.html'
       return
     }
 
@@ -688,15 +688,15 @@ function checkUserLevel(requiredLevel) {
 
 /**
  * ========================================
- * INICIALIZAÇÃO
+ * INICIALIZAÇÃO DESABILITADA
  * ========================================
  *
- * Inicializa o sistema de proteção quando
- * o DOM estiver carregado
+ * DESABILITADO para evitar conflito com main.js
+ * O main.js já controla a autenticação
  */
-document.addEventListener('DOMContentLoaded', () => {
-  new AuthGuard()
-})
+// document.addEventListener('DOMContentLoaded', () => {
+//   new AuthGuard()
+// })
 
 /**
  * ========================================

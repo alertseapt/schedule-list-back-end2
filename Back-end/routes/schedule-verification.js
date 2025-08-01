@@ -1,6 +1,7 @@
 const express = require('express');
 const { executeCheckinQuery, executeMercocampQuery } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const { triggerProductsIntegration, triggerNfEntryIntegration } = require('./corpem');
 const Joi = require('joi');
 
 const router = express.Router();
@@ -221,6 +222,58 @@ router.post('/change-status', async (req, res) => {
       'UPDATE schedule_list SET status = ?, historic = ? WHERE id = ?',
       [newStatus, JSON.stringify(historic), scheduleId]
     );
+
+    // Se o novo status for "Agendado", disparar integrações Corpem
+    if (newStatus === 'Agendado') {
+      console.log('🔥🔥🔥 STATUS ALTERADO PARA AGENDADO VIA VERIFICAÇÃO 🔥🔥🔥');
+      console.log('🚀 Disparando integrações Corpem para agendamento:', scheduleId);
+      
+      try {
+        // Buscar dados completos do agendamento para as integrações
+        const fullScheduleData = await executeCheckinQuery(
+          'SELECT * FROM schedule_list WHERE id = ?',
+          [scheduleId]
+        );
+
+        if (fullScheduleData.length > 0) {
+          const scheduleData = fullScheduleData[0];
+          
+          // Processar campo info se for string
+          if (scheduleData.info && typeof scheduleData.info === 'string') {
+            try {
+              scheduleData.info = JSON.parse(scheduleData.info);
+            } catch (e) {
+              console.log('Erro ao parsear info, mantendo como string');
+            }
+          }
+
+          const userId = req.user.user || req.user.name || 'schedule-verification';
+
+          // Disparar integração de produtos
+          console.log('🔄 Disparando integração de produtos...');
+          const productsResult = await triggerProductsIntegration(scheduleData, userId);
+          console.log('📥 Resultado integração produtos:', productsResult);
+
+          // Disparar integração de NF APENAS se produtos foram cadastrados com sucesso
+          if (productsResult.success) {
+            console.log('🔄 Produtos cadastrados com sucesso! Disparando integração de NF de entrada...');
+            const nfResult = await triggerNfEntryIntegration(scheduleData, userId);
+            console.log('📥 Resultado integração NF:', nfResult);
+            
+            if (nfResult.success) {
+              console.log('✅ Integrações Corpem disparadas com sucesso!');
+            } else {
+              console.log('⚠️ Produtos OK, mas NF falhou:', nfResult.message);
+            }
+          } else {
+            console.log('🚫 Produtos falharam, NF não será integrada:', productsResult.message);
+          }
+        }
+      } catch (integrationError) {
+        console.error('❌ Erro nas integrações Corpem:', integrationError);
+        // Não falhar a alteração de status por causa das integrações
+      }
+    }
 
     res.json({
       success: true,

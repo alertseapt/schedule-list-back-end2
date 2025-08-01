@@ -11,13 +11,17 @@ router.use(authenticateToken);
 
 // Schemas de validação
 const emailSettingsSchema = Joi.object({
-  primaryEmail: Joi.string().email().required(),
+  primaryEmail: Joi.alternatives().try(
+    Joi.string().email(),
+    Joi.string().allow('').empty('')
+  ).optional(),
   ccEmails: Joi.array().items(Joi.string().email()).default([]),
   statusNotifications: Joi.object({
     solicitado: Joi.boolean().default(false),
     contestado: Joi.boolean().default(false),
     agendado: Joi.boolean().default(false),
     conferencia: Joi.boolean().default(false),
+    recebido: Joi.boolean().default(false),
     tratativa: Joi.boolean().default(false),
     estoque: Joi.boolean().default(false),
     recusar: Joi.boolean().default(false),
@@ -308,17 +312,21 @@ router.post('/test-email', async (req, res) => {
 
     const userConfig = users[0].config;
     if (!userConfig) {
-      return res.status(400).json({
-        error: 'Usuário não possui configurações de e-mail'
+      return res.json({
+        message: 'Teste de e-mail pulado - nenhuma configuração de e-mail definida',
+        skipped: true,
+        reason: 'Usuário não possui configurações de e-mail'
       });
     }
 
     const config = typeof userConfig === 'string' ? JSON.parse(userConfig) : userConfig;
     const emailSettings = config.emailSettings;
 
-    if (!emailSettings || !emailSettings.primaryEmail) {
-      return res.status(400).json({
-        error: 'E-mail principal não configurado'
+    if (!emailSettings || !emailSettings.primaryEmail || emailSettings.primaryEmail.trim() === '') {
+      return res.json({
+        message: 'Teste de e-mail pulado - e-mail principal não configurado',
+        skipped: true,
+        reason: 'E-mail principal não configurado'
       });
     }
 
@@ -334,12 +342,21 @@ router.post('/test-email', async (req, res) => {
     const result = await emailService.sendTestEmail(recipients);
 
     if (result.success) {
-      console.log('✅ E-mail de teste enviado com sucesso');
-      res.json({
-        message: 'E-mail de teste enviado com sucesso',
-        recipients: result.recipients,
-        messageId: result.messageId
-      });
+      if (result.skipped) {
+        console.log('ℹ️ Teste de e-mail pulado');
+        res.json({
+          message: result.reason || 'Teste de e-mail pulado',
+          skipped: true,
+          reason: result.reason
+        });
+      } else {
+        console.log('✅ E-mail de teste enviado com sucesso');
+        res.json({
+          message: 'E-mail de teste enviado com sucesso',
+          recipients: result.recipients,
+          messageId: result.messageId
+        });
+      }
     } else {
       console.error('❌ Falha ao enviar e-mail de teste:', result.error);
       res.status(500).json({

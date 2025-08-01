@@ -540,10 +540,51 @@ export default {
         })
 
         const { nfeData, products } = this.parseNFeXML(xmlText)
+        this.uploadProgress = 50
 
-        // Validação de acesso será realizada na seleção do estoque
-        // A validação do CNPJ do XML não é mais necessária
+        // VERIFICAÇÃO DE DUPLICIDADE - PRIMEIRA ETAPA
+        console.log('🔍 Verificando duplicidade de chave NFe na primeira etapa...')
+        
+        if (nfeData.nfe_key) {
+          try {
+            const apiClient = window.apiClient
+            const duplicateCheckResponse = await apiClient.request('/schedules/check-duplicate', {
+              method: 'POST',
+              data: { nfe_key: nfeData.nfe_key }
+            })
+            
+            if (!duplicateCheckResponse.success) {
+              // NFe duplicada encontrada
+              const errorMessage = duplicateCheckResponse.message || 'NFe já possui agendamento'
+              console.log('❌ NFe duplicada detectada na primeira etapa:', errorMessage)
+              
+              this.showError(errorMessage)
+              this.nfeData = {}
+              this.products = []
+              this.selectedFile = null
+              return
+            }
+            
+            console.log('✅ NFe não duplicada - prosseguindo com processamento')
+          } catch (duplicateError) {
+            console.error('❌ Erro ao verificar duplicidade:', duplicateError)
+            
+            // Se for erro 409 (conflict), é uma duplicata
+            if (duplicateError.response?.status === 409) {
+              const errorMessage = duplicateError.response?.data?.message || 'Esta NFe já possui um agendamento ativo'
+              this.showError(errorMessage)
+              this.nfeData = {}
+              this.products = []
+              this.selectedFile = null
+              return
+            }
+            
+            // Outros erros são tratados como problemas de conexão
+            console.warn('⚠️ Erro de conexão na verificação de duplicidade, prosseguindo:', duplicateError.message)
+          }
+        }
 
+        // Continuação do processamento normal
         this.nfeData = nfeData
         this.products = products
         this.uploadProgress = 100
