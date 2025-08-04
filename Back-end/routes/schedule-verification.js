@@ -223,13 +223,11 @@ router.post('/change-status', async (req, res) => {
       [newStatus, JSON.stringify(historic), scheduleId]
     );
 
-    // Se o novo status for "Agendado", disparar integrações Corpem
-    if (newStatus === 'Agendado') {
-      console.log('🔥🔥🔥 STATUS ALTERADO PARA AGENDADO VIA VERIFICAÇÃO 🔥🔥🔥');
-      console.log('🚀 Disparando integrações Corpem para agendamento:', scheduleId);
+    // Se o novo status for "Conferência", disparar integrações Corpem
+    if (newStatus === 'Conferência') {
+      console.log(`Status alterado para Conferência - Disparando integrações Corpem (ID: ${scheduleId})`);
       
       try {
-        // Buscar dados completos do agendamento para as integrações
         const fullScheduleData = await executeCheckinQuery(
           'SELECT * FROM schedule_list WHERE id = ?',
           [scheduleId]
@@ -238,7 +236,6 @@ router.post('/change-status', async (req, res) => {
         if (fullScheduleData.length > 0) {
           const scheduleData = fullScheduleData[0];
           
-          // Processar campo info se for string
           if (scheduleData.info && typeof scheduleData.info === 'string') {
             try {
               scheduleData.info = JSON.parse(scheduleData.info);
@@ -248,30 +245,22 @@ router.post('/change-status', async (req, res) => {
           }
 
           const userId = req.user.user || req.user.name || 'schedule-verification';
-
-          // Disparar integração de produtos
-          console.log('🔄 Disparando integração de produtos...');
           const productsResult = await triggerProductsIntegration(scheduleData, userId);
-          console.log('📥 Resultado integração produtos:', productsResult);
 
-          // Disparar integração de NF APENAS se produtos foram cadastrados com sucesso
           if (productsResult.success) {
-            console.log('🔄 Produtos cadastrados com sucesso! Disparando integração de NF de entrada...');
             const nfResult = await triggerNfEntryIntegration(scheduleData, userId);
-            console.log('📥 Resultado integração NF:', nfResult);
             
             if (nfResult.success) {
-              console.log('✅ Integrações Corpem disparadas com sucesso!');
+              console.log(`Integrações Corpem concluídas com sucesso (ID: ${scheduleId})`);
             } else {
-              console.log('⚠️ Produtos OK, mas NF falhou:', nfResult.message);
+              console.log(`Produtos OK, mas NF falhou (ID: ${scheduleId}):`, nfResult.message);
             }
           } else {
-            console.log('🚫 Produtos falharam, NF não será integrada:', productsResult.message);
+            console.log(`Produtos falharam, NF não integrada (ID: ${scheduleId}):`, productsResult.message);
           }
         }
       } catch (integrationError) {
-        console.error('❌ Erro nas integrações Corpem:', integrationError);
-        // Não falhar a alteração de status por causa das integrações
+        console.error(`Erro nas integrações Corpem (ID: ${scheduleId}):`, integrationError);
       }
     }
 

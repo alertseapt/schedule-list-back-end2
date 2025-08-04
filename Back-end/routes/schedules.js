@@ -35,42 +35,29 @@ router.use(authenticateToken);
 // Rota específica para verificar duplicidade de NFe (PRIMEIRA ETAPA)
 router.post('/check-duplicate', async (req, res) => {
   try {
-    console.log('🔍 ==================== VERIFICAÇÃO DE DUPLICIDADE - PRIMEIRA ETAPA ====================');
-    console.log(`👤 Usuário: ${req.user?.user}`);
-    console.log(`📝 Dados recebidos: ${JSON.stringify(req.body, null, 2)}`);
-    
     const { nfe_key } = req.body;
     
     if (!nfe_key) {
-      console.log('❌ Chave NFe não fornecida');
       return res.status(400).json({
         success: false,
         message: 'Chave NFe é obrigatória'
       });
     }
     
-    // Realizar verificação de duplicidade (mesma lógica usada nas outras rotas)
     const cleanNfeKey = nfe_key.toString().trim().replace(/[^\d]/g, '');
-    console.log(`🔑 Chave NFe limpa: ${cleanNfeKey}`);
     
     const existingSchedules = await executeCheckinQuery(
       'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?',
       [cleanNfeKey]
     );
     
-    console.log(`📊 Agendamentos encontrados: ${existingSchedules.length}`);
-    
     if (existingSchedules.length > 0) {
-      // Verificar se algum agendamento não está cancelado
       const activeSchedules = existingSchedules.filter(schedule => 
         schedule.status !== 'Cancelado' && schedule.status !== 'Recusado'
       );
       
-      console.log(`📊 Agendamentos ativos: ${activeSchedules.length}`);
-      
       if (activeSchedules.length > 0) {
         const activeSchedule = activeSchedules[0];
-        console.log(`❌ Duplicata detectada - Agendamento ID: ${activeSchedule.id}, Status: ${activeSchedule.status}`);
         
         return res.status(409).json({
           success: false,
@@ -84,9 +71,6 @@ router.post('/check-duplicate', async (req, res) => {
         });
       }
     }
-    
-    console.log('✅ NFe não duplicada - pode prosseguir');
-    console.log('🔍 ==================== FIM VERIFICAÇÃO DUPLICIDADE ====================');
     
     return res.json({
       success: true,
@@ -103,17 +87,6 @@ router.post('/check-duplicate', async (req, res) => {
   }
 });
 
-// Log interceptador para todas as requisições POST nesta rota
-router.use((req, res, next) => {
-  if (req.method === 'POST') {
-    console.log('🚨 =========================== POST REQUEST INTERCEPTADO ===========================');
-    console.log(`📍 Rota: ${req.originalUrl}`);
-    console.log(`👤 Usuário: ${req.user?.user || 'UNKNOWN'}`);
-    console.log(`📝 Body: ${JSON.stringify(req.body, null, 2)}`);
-    console.log('🚨 ========================================================================');
-  }
-  next();
-});
 
 // Schemas de validação para agendamentos (estrutura real: schedule_list)
 const scheduleSchemas = {
@@ -154,8 +127,8 @@ const scheduleSchemas = {
 const hasClientAccess = (userCliAccess, clientCnpj) => {
   // Se não estamos em um contexto de requisição, usamos a verificação direta
   if (!global.currentRequest || !global.currentRequest.user) {
-    if (!userCliAccess || typeof userCliAccess !== 'object') return false;
-    return Object.keys(userCliAccess).includes(clientCnpj);
+  if (!userCliAccess || typeof userCliAccess !== 'object') return false;
+  return Object.keys(userCliAccess).includes(clientCnpj);
   }
   
   // Se estamos em um contexto de requisição, usamos a função com cache
@@ -165,10 +138,8 @@ const hasClientAccess = (userCliAccess, clientCnpj) => {
 // Função auxiliar para buscar informações do cliente no cli_access do usuário logado
 const getClientInfo = async (clientCnpj, userCliAccess = null) => {
   try {
-    
     // Se foi passado o cli_access do usuário logado, usar ele primeiro
     if (userCliAccess) {
-      
       if (userCliAccess[clientCnpj]) {
         const clientData = userCliAccess[clientCnpj];
         
@@ -202,7 +173,6 @@ const getClientInfo = async (clientCnpj, userCliAccess = null) => {
           source: 'cli_access',
           cli_access_data: clientData
         };
-        
         
         return result;
       }
@@ -285,17 +255,10 @@ router.get('/', async (req, res) => {
     let params = [];
 
     // Filtrar por acesso do usuário baseado no nível de permissão
-    // IMPORTANTE: Apenas level_access = 0 (Desenvolvedor) tem acesso total
-    // TODOS os outros níveis (incluindo 1, 2, 3) devem ser filtrados por cli_access
-    // Isso garante que mesmo administradores vejam apenas clientes autorizados
     const shouldFilterByCliAccess = !req.user._clientAccessCache.hasFullAccess;
     
-    
     if (shouldFilterByCliAccess) {
-      // Usuários com acesso restrito - filtrar por cli_access
-      // Usando a lista de clientes permitidos do cache
       const allowedClients = req.user._clientAccessCache.allowedClients;
-      
       
       if (allowedClients.length === 0) {
         return res.json({
@@ -312,24 +275,18 @@ router.get('/', async (req, res) => {
       // Normalizar CNPJs: criar array com versões com e sem formatação
       const normalizedClients = [];
       allowedClients.forEach(cnpj => {
-        normalizedClients.push(cnpj); // CNPJ original
-        normalizedClients.push(cnpj.replace(/[^\d]/g, '')); // Apenas números
-        // Adicionar versão formatada se ainda não estiver
+        normalizedClients.push(cnpj);
+        normalizedClients.push(cnpj.replace(/[^\d]/g, ''));
         const formatted = cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
         if (formatted !== cnpj) {
           normalizedClients.push(formatted);
         }
       });
       
-      // Remover duplicatas
       const uniqueClients = [...new Set(normalizedClients)];
       
-      
-      // Filtrar pelos CNPJs normalizados
       whereClause += ` AND client IN (${uniqueClients.map(() => '?').join(',')})`;
       params.push(...uniqueClients);
-      
-    } else {
     }
 
     // Filtros adicionais
@@ -379,7 +336,6 @@ router.get('/', async (req, res) => {
       params
     );
 
-    
     // Processar dados de retorno
     const processedSchedules = await Promise.all(schedules.map(async (schedule) => {
       const clientInfo = await getClientInfo(schedule.client, req.user.cli_access);
@@ -448,7 +404,6 @@ router.get('/', async (req, res) => {
           client_info: clientInfo
         };
         
-        
         return result;
     }));
 
@@ -510,8 +465,8 @@ router.post('/check-cnpj-requirements', async (req, res) => {
         requires_stock: false,
         has_access: hasAccess,
         message: hasAccess ? 'CNPJ autorizado' : 'CNPJ não autorizado para este usuário'
-      });
-    } else {
+          });
+        } else {
       // CNPJ não existe - estoque obrigatório
       return res.json({
         cnpj_registered: false,
@@ -673,10 +628,6 @@ router.get('/:id', validate(paramSchemas.id, 'params'), async (req, res) => {
 // Criar agendamento (apenas admin/manager)
 router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res) => {
   try {
-    console.log('🚀 CRIANDO AGENDAMENTO - Rota POST /schedules');
-    console.log('   Usuário:', req.user.user);
-    console.log('   Body recebido:', JSON.stringify(req.body, null, 2));
-    
     const { 
       number, 
       nfe_key: nfeKey, 
@@ -690,46 +641,18 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
       info
     } = req.body;
     
-    // ==================== VERIFICAÇÃO DE DUPLICIDADE DE CHAVE NFe ====================
-    console.log('🔒 ========== INICIANDO VERIFICAÇÃO DE DUPLICIDADE ==========');
-    console.log(`📋 Chave NFe original: "${nfeKey}"`);
-    console.log(`📋 Tipo da chave: ${typeof nfeKey}`);
-    console.log(`📋 Tamanho da chave: ${nfeKey ? nfeKey.length : 'NULL'}`);
-    
-    // Limpar e normalizar a chave NFe
+    // Verificação de duplicidade de chave NFe
     const cleanNfeKey = nfeKey.toString().trim().replace(/[^\d]/g, '');
-    console.log(`🧹 Chave NFe limpa: "${cleanNfeKey}"`);
-    console.log(`🧹 Tamanho da chave limpa: ${cleanNfeKey.length}`);
-    
-    // Query para buscar duplicatas
     const query = 'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?';
-    console.log(`🔍 Executando query: ${query}`);
-    console.log(`🔍 Parâmetro: "${cleanNfeKey}"`);
-    
     const existingSchedules = await executeCheckinQuery(query, [cleanNfeKey]);
     
-    console.log(`📊 Resultados encontrados: ${existingSchedules.length}`);
-    
     if (existingSchedules.length > 0) {
-      console.log('📋 Agendamentos encontrados:');
-      existingSchedules.forEach((schedule, index) => {
-        console.log(`   ${index + 1}. ID: ${schedule.id}, Status: "${schedule.status}", Cliente: ${schedule.client}, NFe: "${schedule.nfe_key}"`);
-      });
-      
-      // Verificar se algum agendamento não está cancelado
       const nonCancelledSchedules = existingSchedules.filter(schedule => 
         schedule.status !== 'Cancelado'
       );
       
-      console.log(`🚫 Agendamentos NÃO cancelados: ${nonCancelledSchedules.length}`);
-      
       if (nonCancelledSchedules.length > 0) {
         const schedule = nonCancelledSchedules[0];
-        console.log(`❌ DUPLICIDADE DETECTADA! Bloqueando criação.`);
-        console.log(`   ID conflitante: ${schedule.id}`);
-        console.log(`   Status conflitante: "${schedule.status}"`);
-        console.log(`   Cliente conflitante: ${schedule.client}`);
-        console.log('🔒 ========== BLOQUEANDO CRIAÇÃO POR DUPLICIDADE ==========');
         
         return res.status(409).json({
           error: 'Chave de acesso já cadastrada',
@@ -742,32 +665,17 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
             number: schedule.number
           }
         });
-      } else {
-        console.log(`✅ Todos os agendamentos encontrados estão cancelados. Permitindo criação.`);
       }
-    } else {
-      console.log(`✅ Nenhum agendamento encontrado com a chave NFe. Permitindo criação.`);
     }
     
-    console.log('🔒 ========== VERIFICAÇÃO DE DUPLICIDADE CONCLUÍDA ==========');
-    
-    // VERIFICAÇÃO DE ACESSO PARA CNPJ
-    // 1. Usuários nível 0 têm acesso total (sem verificações)
-    // 2. Para outros níveis, verificar se o usuário tem acesso ao cliente
+    // Verificação de acesso para CNPJ
     if (!req.user._clientAccessCache.hasFullAccess) {
-      console.log('🔒 Verificando permissão de acesso ao cliente:', client);
-      console.log('   Usuário:', req.user.user);
-      console.log('   Nível de acesso:', req.user.level_access);
-      
-      // Verificar se o usuário tem acesso ao cliente usando a função de cache
       if (!checkClientAccess(req, client)) {
         return res.status(403).json({
           error: 'Acesso negado. Você não tem permissão para criar agendamentos para este cliente.',
           details: 'O cliente especificado não está na sua lista de acessos permitidos'
         });
       }
-      
-      console.log('✅ Usuário tem permissão para acessar o cliente');
     }
 
     // Adicionar entrada inicial ao histórico
@@ -791,6 +699,8 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
 
     const scheduleId = result.insertId;
 
+    console.log(`✅ Agendamento criado - ID: ${scheduleId}`);
+
     // Buscar dados completos do agendamento para o e-mail
     const createdSchedules = await executeCheckinQuery(
       'SELECT * FROM schedule_list WHERE id = ?',
@@ -798,9 +708,6 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
     );
 
     const createdSchedule = createdSchedules[0];
-
-    // 🤖 TRIGGERS AUTOMÁTICOS CORPEM WMS - CRIAÇÃO
-    // Integração de NF de entrada removida temporariamente
 
     // Preparar dados completos do agendamento para e-mail
     const clientInfo = await getClientInfo(createdSchedule.client, req.user.cli_access);
@@ -814,26 +721,13 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
     emailService.sendStatusChangeNotification(
       req.user.id,
       completeScheduleData,
-      null, // Não há status anterior na criação
+      null,
       'Solicitado',
       req.user.user || 'Sistema',
       'Agendamento criado no sistema'
-    ).then(result => {
-      if (result.success) {
-        if (result.skipped) {
-          console.log(`ℹ️ E-mail de criação pulado: ${result.reason}`);
-        } else {
-          console.log(`📧 E-mail de criação enviado com sucesso para: ${result.recipients.join(', ')}`);
-        }
-      } else {
-        console.log(`⚠️ E-mail de criação não enviado: ${result.reason || result.error}`);
-      }
-    }).catch(error => {
-      // Não tratar como erro se o e-mail foi pulado por falta de configuração
-      if (error.message && error.message.includes('e-mail configurado')) {
-        console.log('ℹ️ E-mail de criação pulado - usuário sem configuração');
-      } else {
-        console.error('❌ Erro ao enviar e-mail de criação:', error);
+    ).catch(error => {
+      if (!error.message || !error.message.includes('e-mail configurado')) {
+        console.error('Erro ao enviar e-mail de criação:', error);
       }
     });
 
@@ -863,55 +757,21 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
 // Criar agendamento com produtos via NFe (apenas admin/manager)
 router.post('/create-with-products', requireAdmin, validate(scheduleSchemas.createWithProducts), async (req, res) => {
   try {
-    console.log('🚀 CRIANDO AGENDAMENTO COM PRODUTOS - Rota POST /schedules/create-with-products');
     const { nfe_data } = req.body;
     
-    console.log('📥 Criando agendamento com produtos via NFe');
-    console.log('   Usuário:', req.user.user);
-    console.log('   CNPJ:', nfe_data.client_cnpj);
-    console.log('   NFe Key:', nfe_data.nfe_key);
-    console.log('   Nível de acesso:', req.user.level_access);
-    
-    // ==================== VERIFICAÇÃO DE DUPLICIDADE DE CHAVE NFe ====================
+    // Verificação de duplicidade de chave NFe
     if (nfe_data.nfe_key) {
-      console.log('🔒 ========== INICIANDO VERIFICAÇÃO DE DUPLICIDADE (CREATE-WITH-PRODUCTS) ==========');
-      console.log(`📋 Chave NFe original: "${nfe_data.nfe_key}"`);
-      console.log(`📋 Tipo da chave: ${typeof nfe_data.nfe_key}`);
-      console.log(`📋 Tamanho da chave: ${nfe_data.nfe_key ? nfe_data.nfe_key.length : 'NULL'}`);
-      
       const cleanNfeKey = nfe_data.nfe_key.toString().trim().replace(/[^\d]/g, '');
-      console.log(`🧹 Chave NFe limpa: "${cleanNfeKey}"`);
-      console.log(`🧹 Tamanho da chave limpa: ${cleanNfeKey.length}`);
-      
-      // Query para buscar duplicatas
       const query = 'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?';
-      console.log(`🔍 Executando query: ${query}`);
-      console.log(`🔍 Parâmetro: "${cleanNfeKey}"`);
-      
       const existingSchedules = await executeCheckinQuery(query, [cleanNfeKey]);
-      
-      console.log(`📊 Resultados encontrados: ${existingSchedules.length}`);
 
       if (existingSchedules.length > 0) {
-        console.log('📋 Agendamentos encontrados:');
-        existingSchedules.forEach((schedule, index) => {
-          console.log(`   ${index + 1}. ID: ${schedule.id}, Status: "${schedule.status}", Cliente: ${schedule.client}, NFe: "${schedule.nfe_key}"`);
-        });
-        
-        // Verificar se algum agendamento não está cancelado
         const nonCancelledSchedules = existingSchedules.filter(schedule => 
           schedule.status !== 'Cancelado'
         );
-        
-        console.log(`🚫 Agendamentos NÃO cancelados: ${nonCancelledSchedules.length}`);
 
         if (nonCancelledSchedules.length > 0) {
           const schedule = nonCancelledSchedules[0];
-          console.log(`❌ DUPLICIDADE DETECTADA! Bloqueando criação.`);
-          console.log(`   ID conflitante: ${schedule.id}`);
-          console.log(`   Status conflitante: "${schedule.status}"`);
-          console.log(`   Cliente conflitante: ${schedule.client}`);
-          console.log('🔒 ========== BLOQUEANDO CRIAÇÃO POR DUPLICIDADE ==========');
           
           return res.status(409).json({
             error: 'Chave de acesso já cadastrada',
@@ -924,26 +784,15 @@ router.post('/create-with-products', requireAdmin, validate(scheduleSchemas.crea
               number: schedule.number
             }
           });
-        } else {
-          console.log(`✅ Todos os agendamentos encontrados estão cancelados. Permitindo criação.`);
         }
-      } else {
-        console.log(`✅ Nenhum agendamento encontrado com a chave NFe. Permitindo criação.`);
       }
-      
-      console.log('🔒 ========== VERIFICAÇÃO DE DUPLICIDADE CONCLUÍDA ==========');
-    } else {
-      console.log('⚠️ Chave NFe não fornecida. Pulando verificação de duplicidade.');
     }
     
-    // VERIFICAÇÃO ESPECIAL DE ACESSO PARA CNPJ
-    // 1. Usuários nível 0 têm acesso total (sem verificações)
-    // 2. Para outros níveis, verificar se CNPJ existe no WCL
+    // Verificação especial de acesso para CNPJ
     if (!req.user._clientAccessCache.hasFullAccess) {
       const wclValidation = await validateClientInWcl(nfe_data.client_cnpj);
       
       if (wclValidation.exists) {
-        // CNPJ existe no WCL - aplicar verificação normal de cli_access usando o cache
         if (!checkClientAccess(req, nfe_data.client_cnpj)) {
           return res.status(403).json({
             error: 'Você não tem permissão para agendar NFe para este CNPJ',
@@ -951,8 +800,6 @@ router.post('/create-with-products', requireAdmin, validate(scheduleSchemas.crea
           });
         }
       } else {
-        // CNPJ NÃO existe no WCL - permitir agendamento com obrigatoriedade de estoque
-        console.log('⚠️ CNPJ NÃO encontrado no WCL - permitindo agendamento com estoque obrigatório');
         if (!nfe_data.stock_location || nfe_data.stock_location.trim() === '') {
           return res.status(400).json({
             error: 'Para CNPJs não cadastrados no sistema, a escolha do estoque é obrigatória',
@@ -980,29 +827,41 @@ router.post('/create-with-products', requireAdmin, validate(scheduleSchemas.crea
       cnpj_registered_in_wcl: (await validateClientInWcl(nfe_data.client_cnpj)).exists
     };
 
+    // Calculate qt_prod if not provided (sum of all product quantities)
+    let qtProd = nfe_data.qt_prod;
+    if (qtProd === undefined || qtProd === null) {
+      if (nfe_data.products && Array.isArray(nfe_data.products)) {
+        qtProd = nfe_data.products.reduce((sum, product) => sum + (product.quantity || 0), 0);
+      } else {
+        qtProd = 0;
+      }
+    }
+
+    // Prepare INSERT parameters with null-safe values
+    const insertParams = [
+      nfe_data.number || null,
+      nfe_data.nfe_key || null,
+      nfe_data.client_cnpj || null,
+      nfe_data.case_count || 0,
+      nfe_data.date || null,
+      'Solicitado',
+      JSON.stringify(initialHistoric || {}),
+      nfe_data.supplier_name || 'Não informado',
+      qtProd || 0,
+      JSON.stringify(additionalInfo || {})
+    ];
+
     // Inserir agendamento na tabela schedule_list do dbcheckin
     const result = await executeCheckinQuery(
       `INSERT INTO schedule_list 
        (number, nfe_key, client, case_count, date, status, historic, supplier, qt_prod, info) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        nfe_data.number,
-        nfe_data.nfe_key,
-        nfe_data.client_cnpj,
-        nfe_data.case_count,
-        nfe_data.date,
-        'Solicitado',
-        JSON.stringify(initialHistoric),
-        nfe_data.supplier_name || 'Não informado',
-        nfe_data.qt_prod,
-        JSON.stringify(additionalInfo)
-      ]
+      insertParams
     );
 
     const scheduleId = result.insertId;
-
-    // Produtos serão salvos na tabela products apenas quando status mudar para "Agendado"
-    console.log(`ℹ️ Agendamento criado com ${nfe_data.products ? nfe_data.products.length : 0} produtos - salvamento na tabela products ocorrerá quando status = "Agendado"`);
+    
+    console.log(`✅ Agendamento com produtos criado - ID: ${scheduleId}`);
 
     // Buscar dados completos do agendamento para o e-mail
     const createdSchedules = await executeCheckinQuery(
@@ -1011,9 +870,6 @@ router.post('/create-with-products', requireAdmin, validate(scheduleSchemas.crea
     );
 
     const createdSchedule = createdSchedules[0];
-
-    // 🤖 TRIGGERS AUTOMÁTICOS CORPEM WMS - CRIAÇÃO COM PRODUTOS
-    // Integração de NF de entrada removida temporariamente
 
     // Preparar dados completos do agendamento para e-mail
     const clientInfo = await getClientInfo(createdSchedule.client, req.user.cli_access);
@@ -1027,26 +883,13 @@ router.post('/create-with-products', requireAdmin, validate(scheduleSchemas.crea
     emailService.sendStatusChangeNotification(
       req.user.id,
       completeScheduleData,
-      null, // Não há status anterior na criação
+      null,
       'Solicitado',
       req.user.user || 'Sistema',
       `Agendamento criado automaticamente a partir da NFe ${nfe_data.number}`
-    ).then(result => {
-      if (result.success) {
-        if (result.skipped) {
-          console.log(`ℹ️ E-mail de criação pulado: ${result.reason}`);
-        } else {
-          console.log(`📧 E-mail de criação enviado com sucesso para: ${result.recipients.join(', ')}`);
-        }
-      } else {
-        console.log(`⚠️ E-mail de criação não enviado: ${result.reason || result.error}`);
-      }
-    }).catch(error => {
-      // Não tratar como erro se o e-mail foi pulado por falta de configuração
-      if (error.message && error.message.includes('e-mail configurado')) {
-        console.log('ℹ️ E-mail de criação pulado - usuário sem configuração');
-      } else {
-        console.error('❌ Erro ao enviar e-mail de criação:', error);
+    ).catch(error => {
+      if (!error.message || !error.message.includes('e-mail configurado')) {
+        console.error('Erro ao enviar e-mail de criação:', error);
       }
     });
 
@@ -1103,16 +946,10 @@ router.put('/:id', requireAdmin, validate(paramSchemas.id, 'params'), validate(s
       });
     }
     
-    // VERIFICAÇÃO DE ACESSO PARA CNPJ
-    // 1. Usuários nível 0 têm acesso total (sem verificações)
-    // 2. Para outros níveis, verificar se o usuário tem acesso ao cliente
+    // Verificação de acesso para CNPJ
     if (!req.user._clientAccessCache.hasFullAccess) {
       const existingClient = existingSchedules[0].client;
-      console.log('🔒 Verificando permissão de acesso ao cliente:', existingClient);
-      console.log('   Usuário:', req.user.user);
-      console.log('   Nível de acesso:', req.user.level_access);
       
-      // Verificar se o usuário tem acesso ao cliente usando a função de cache
       if (!checkClientAccess(req, existingClient)) {
         return res.status(403).json({
           error: 'Acesso negado. Você não tem permissão para atualizar agendamentos deste cliente.',
@@ -1122,8 +959,6 @@ router.put('/:id', requireAdmin, validate(paramSchemas.id, 'params'), validate(s
       
       // Se o cliente está sendo alterado, verificar acesso ao novo cliente também
       if (client !== undefined && client !== existingClient) {
-        console.log('🔒 Verificando permissão de acesso ao novo cliente:', client);
-        
         if (!checkClientAccess(req, client)) {
           return res.status(403).json({
             error: 'Acesso negado. Você não tem permissão para transferir o agendamento para este cliente.',
@@ -1131,8 +966,6 @@ router.put('/:id', requireAdmin, validate(paramSchemas.id, 'params'), validate(s
           });
         }
       }
-      
-      console.log('✅ Usuário tem permissão para acessar o cliente');
     }
 
     // Preparar dados para atualização
@@ -1156,28 +989,17 @@ router.put('/:id', requireAdmin, validate(paramSchemas.id, 'params'), validate(s
       
       // First check if it's already a CNPJ (14 digits only)
       if (client && /^\d{14}$/.test(client)) {
-        clientValue = client; // Already a CNPJ, use as-is
-        console.log(`✅ Client is already CNPJ: ${clientValue}`);
+        clientValue = client;
       } else if (client && client.length > 14) {
-        // Try to extract CNPJ from the debug output we see in console
-        // Looking for the pattern where CNPJ appears in the logs
-        console.log(`⚠️  Client name too long (${client.length} chars): "${client}"`);
-        
         // For this specific case, we know the CNPJ from the debug logs
-        // This is a temporary hardcoded fix until frontend is updated
         if (client.includes('BDLNES')) {
-          clientValue = '53070409000221'; // CNPJ from debug logs
-          console.log(`⚠️  Using known CNPJ for BDLNES: ${clientValue}`);
+          clientValue = '53070409000221';
         } else {
-          // Try to extract any 14-digit sequence
           const cnpjMatch = client.match(/\d{14}/);
           if (cnpjMatch) {
             clientValue = cnpjMatch[0];
-            console.log(`⚠️  Extracted CNPJ: ${clientValue}`);
           } else {
-            // Last resort: truncate to 14 chars (max CNPJ size)
             clientValue = client.substring(0, 14);
-            console.log(`⚠️  Truncated to 14 chars: ${clientValue}`);
           }
         }
       }
@@ -1197,7 +1019,6 @@ router.put('/:id', requireAdmin, validate(paramSchemas.id, 'params'), validate(s
     if (status !== undefined) {
       updateFields.push('status = ?');
       updateParams.push(status);
-      console.log('🔍 Backend - Status sendo atualizado para:', status);
     }
 
     if (qt_prod !== undefined) {
@@ -1214,10 +1035,6 @@ router.put('/:id', requireAdmin, validate(paramSchemas.id, 'params'), validate(s
         ...currentHistoric,
         ...historic
       };
-
-      console.log('🔍 Backend - Histórico atual:', JSON.stringify(currentHistoric, null, 2));
-      console.log('🔍 Backend - Histórico recebido do frontend:', JSON.stringify(historic, null, 2));
-      console.log('🔍 Backend - Histórico final que será salvo:', JSON.stringify(updatedHistoric, null, 2));
 
       updateFields.push('historic = ?');
       updateParams.push(JSON.stringify(updatedHistoric));
@@ -1237,9 +1054,6 @@ router.put('/:id', requireAdmin, validate(paramSchemas.id, 'params'), validate(s
       updateParams
     );
 
-    console.log('🔍 Backend - Atualização realizada com campos:', updateFields);
-    console.log('🔍 Backend - Parâmetros utilizados:', updateParams);
-
     res.json({
       message: 'Agendamento atualizado com sucesso'
     });
@@ -1255,11 +1069,6 @@ router.put('/:id', requireAdmin, validate(paramSchemas.id, 'params'), validate(s
 // Atualizar status do agendamento com histórico detalhado
 router.patch('/:id/status', validate(paramSchemas.id, 'params'), validate(scheduleSchemas.updateStatus), async (req, res) => {
   try {
-    console.log('📥 PATCH /status - Recebendo dados:');
-    console.log('   ID:', req.params.id);
-    console.log('   Body:', JSON.stringify(req.body, null, 2));
-    console.log('   User:', req.user?.user);
-    
     const { id } = req.params;
     const { status, historic_entry } = req.body;
 
@@ -1313,19 +1122,14 @@ router.patch('/:id/status', validate(paramSchemas.id, 'params'), validate(schedu
 
     const updatedSchedule = updatedSchedules[0];
 
-    // 🤖 TRIGGERS AUTOMÁTICOS CORPEM WMS
-    console.log('\n🔥🔥🔥 VERIFICANDO TRIGGERS CORPEM 🔥🔥🔥');
-    console.log('📊 Status atual:', schedule.status);
-    console.log('📊 Novo status:', status);
-    
-    // Trigger 1: Cadastro de produtos quando status vira "Agendado"
-    if (status === 'Agendado' && schedule.status !== 'Agendado') {
-      console.log('🎯 TRIGGER ATIVADO: Status mudou para "Agendado"');
+    console.log(`✅ Status alterado: ${schedule.status} → ${status}`);
+
+    // Triggers automáticos Corpem WMS
+    if (status === 'Conferência' && schedule.status !== 'Conferência') {
+      console.log('🔗 Iniciando integrações Corpem...');
       
-      // 1. Salvar produtos na tabela products para pré-preenchimento futuro
-      console.log('📝 Salvando produtos na tabela products...');
+      // 1. Salvar produtos na tabela products
       try {
-        // Extrair produtos do agendamento
         let products = [];
         if (updatedSchedule.info) {
           let info = updatedSchedule.info;
@@ -1336,140 +1140,78 @@ router.patch('/:id/status', validate(paramSchemas.id, 'params'), validate(schedu
         }
         
         if (products.length > 0) {
-          console.log(`🗃️ Salvando ${products.length} produtos na tabela products`);
-          
           const saveResult = await productService.saveProductsFromSchedule(
             products, 
             updatedSchedule, 
             req.user.user
           );
-          
-          console.log(`📊 Produtos salvos: ${saveResult.message}`);
-        } else {
-          console.log('⚠️ Nenhum produto encontrado no agendamento para salvar');
         }
       } catch (productSaveError) {
-        console.error('❌ Erro ao salvar produtos na tabela products:', productSaveError.message);
+        console.error('Erro ao salvar produtos:', productSaveError.message);
       }
       
-      // 2. Buscar DP na tabela WTR usando CNPJ (Serviço Otimizado)
-      console.log('🔍 Buscando DP na tabela WTR com serviço otimizado...');
+      // 2. Buscar DP na tabela WTR
       try {
         const dpService = new DPVerificationServiceWithDate();
-        
-        // Extrair informações necessárias do agendamento
         const nfNumber = updatedSchedule.number || updatedSchedule.nfe_key;
         const clientCnpj = updatedSchedule.client;
         let clientNumber = null;
         
-        // Tentar extrair número do cliente das informações adicionais se disponível
         if (updatedSchedule.info) {
           let info = updatedSchedule.info;
           if (typeof info === 'string') {
             info = JSON.parse(info);
           }
-          // Buscar número do cliente nas informações do agendamento
           clientNumber = info.client_number || info.no_cli || null;
         }
         
-        console.log(`   📋 Dados para busca:`);
-        console.log(`      NF: ${nfNumber}`);
-        console.log(`      CNPJ: ${clientCnpj}`);
-        console.log(`      Cliente: ${clientNumber || 'não disponível'}`);
-        
-        // Buscar DP usando serviço com validação de data
         const dpResult = await dpService.getDPFromWtrTableWithDate(
           nfNumber, 
           clientCnpj, 
           clientNumber,
-          scheduleId
+          id
         );
         
         if (dpResult) {
-          // Atualizar o agendamento com o resultado da busca
           await dpService.updateScheduleDP(updatedSchedule.id, dpResult);
-          console.log(`✅ DP encontrado e salvo: ${dpResult.dp_number}`);
-          console.log(`   📊 Estratégia utilizada: ${dpResult.strategy_used}`);
-          console.log(`   🕐 Encontrado em: ${dpResult.found_at}`);
-          
-          // Atualizar o objeto para usar nas próximas etapas
           updatedSchedule.no_dp = dpResult.dp_number;
-          
-          // Log adicional para casos especiais
-          if (dpResult.strategy_used === 'client_fallback') {
-            console.log(`   ⚠️ Fallback utilizado - CNPJ no registro: ${dpResult.cnpj || 'não informado'}`);
-          } else if (dpResult.strategy_used === 'flexible_cnpj') {
-            console.log(`   🔄 Busca flexível - múltiplas NFs detectadas`);
-          } else if (dpResult.strategy_used === 'nf_only') {
-            console.log(`   ⚠️ Busca apenas por NF - validar manualmente`);
-          }
-          
-        } else {
-          console.log('⚠️ DP não encontrado na tabela WTR');
-          console.log('   Possíveis causas:');
-          console.log('   - NF não existe na base WTR');
-          console.log('   - CNPJ/Cliente não correspondem');
-          console.log('   - Dados inconsistentes');
-        }
-        
-        // Log das estatísticas do serviço
-        const stats = dpService.getStatistics();
-        if (stats.searches > 0) {
-          console.log(`📊 Estatísticas do serviço DP: ${stats.success_rate} taxa de sucesso`);
         }
         
       } catch (dpSearchError) {
-        console.error('❌ Erro ao buscar DP na tabela WTR:', dpSearchError.message);
-        console.error('   Stack trace:', dpSearchError.stack);
+        console.error('Erro ao buscar DP:', dpSearchError.message);
       }
       
-      // 3. Integração com Corpem (cadastro de produtos)
-      console.log('🔗 Chamando triggerProductsIntegration...');
+      // 3. Integração com Corpem
       triggerProductsIntegration(updatedSchedule, req.user.user)
         .then(result => {
-          console.log('📥 Resultado trigger produtos:', result);
           if (result.success) {
-            console.log('✅ Trigger produtos Corpem: Integração bem-sucedida');
-            
-            // 4. Integração de NF APENAS após produtos serem cadastrados com sucesso
-            console.log('🔗 Produtos cadastrados com sucesso! Agora chamando triggerNfEntryIntegration...');
-            
+            console.log('✅ Integração produtos Corpem concluída');
             return triggerNfEntryIntegration(updatedSchedule, req.user.user);
           } else {
-            console.log('⚠️ Trigger produtos Corpem: Falha na integração -', result.message);
-            console.log('🚫 NF não será integrada pois produtos falharam');
-            return { success: false, message: 'Produtos não foram cadastrados, NF não integrada' };
+            console.log('⚠️ Falha na integração produtos Corpem');
+            return { success: false, message: 'Produtos não foram cadastrados' };
           }
         })
         .then(nfResult => {
-          if (nfResult) {
-            console.log('📥 Resultado trigger NF:', nfResult);
-            if (nfResult.success) {
-              console.log('✅ Trigger NF: Integração bem-sucedida');
-            } else {
-              console.log('⚠️ Trigger NF: Falha na integração -', nfResult.message);
-            }
+          if (nfResult && nfResult.success) {
+            console.log('✅ Integração NF Corpem concluída');
+          } else if (nfResult) {
+            console.log('⚠️ Falha na integração NF Corpem');
           }
         })
         .catch(error => {
-          console.error('❌ Trigger Corpem: Erro na integração -', error.message);
+          console.error('Erro nas integrações Corpem:', error.message);
         });
     } else {
-      // Se não for "Agendado", ainda executar integração de NF para outros status se necessário
-      console.log('🔗 Status não é "Agendado" - verificando se deve integrar NF...');
-      
-      // Integração de NF de entrada para outros status (se necessário)
+      // Integração de NF para outros status
       triggerNfEntryIntegration(updatedSchedule, req.user.user)
         .then(result => {
-          console.log('📥 Resultado trigger NF (outros status):', result);
           if (result.success) {
-            console.log('✅ Trigger NF: Integração bem-sucedida');
-          } else {
-            console.log('⚠️ Trigger NF: Falha na integração -', result.message);
+            console.log('✅ Integração NF concluída');
           }
         })
         .catch(error => {
-          console.error('❌ Trigger NF: Erro na integração -', error.message);
+          console.error('Erro na integração NF:', error.message);
         });
     }
 
@@ -1489,22 +1231,9 @@ router.patch('/:id/status', validate(paramSchemas.id, 'params'), validate(schedu
       status,
       req.user.user || 'Sistema',
       historic_entry.comment
-    ).then(result => {
-      if (result.success) {
-        if (result.skipped) {
-          console.log(`ℹ️ E-mail pulado: ${result.reason}`);
-        } else {
-          console.log(`📧 E-mail enviado com sucesso para: ${result.recipients.join(', ')}`);
-        }
-      } else {
-        console.log(`⚠️ E-mail não enviado: ${result.reason || result.error}`);
-      }
-    }).catch(error => {
-      // Não tratar como erro se o e-mail foi pulado por falta de configuração
-      if (error.message && error.message.includes('e-mail configurado')) {
-        console.log('ℹ️ E-mail pulado - usuário sem configuração');
-      } else {
-        console.error('❌ Erro ao enviar e-mail:', error);
+    ).catch(error => {
+      if (!error.message || !error.message.includes('e-mail configurado')) {
+        console.error('Erro ao enviar e-mail:', error);
       }
     });
 
@@ -1539,24 +1268,16 @@ router.delete('/:id', requireManager, validate(paramSchemas.id, 'params'), async
       });
     }
     
-    // VERIFICAÇÃO DE ACESSO PARA CNPJ
-    // 1. Usuários nível 0 têm acesso total (sem verificações)
-    // 2. Para outros níveis, verificar se o usuário tem acesso ao cliente
+    // Verificação de acesso para CNPJ
     if (!req.user._clientAccessCache.hasFullAccess) {
       const existingClient = existingSchedules[0].client;
-      console.log('🔒 Verificando permissão de acesso ao cliente:', existingClient);
-      console.log('   Usuário:', req.user.user);
-      console.log('   Nível de acesso:', req.user.level_access);
       
-      // Verificar se o usuário tem acesso ao cliente usando a função de cache
       if (!checkClientAccess(req, existingClient)) {
         return res.status(403).json({
           error: 'Acesso negado. Você não tem permissão para excluir agendamentos deste cliente.',
           details: 'O cliente deste agendamento não está na sua lista de acessos permitidos'
         });
       }
-      
-      console.log('✅ Usuário tem permissão para acessar o cliente');
     }
 
     // Deletar agendamento
@@ -1688,7 +1409,6 @@ router.post('/parse-xml', upload.single('xml_file'), async (req, res) => {
 
     // Verificar se já existe um agendamento com a mesma chave de acesso
     const cleanNfeKey = nfeKey.toString().trim().replace(/[^\d]/g, '');
-    console.log(`🔍 Verificando duplicidade para chave NFe: "${nfeKey}" (limpa: "${cleanNfeKey}")`);
     
     const existingSchedules = await executeCheckinQuery(
       'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?',
@@ -1696,14 +1416,12 @@ router.post('/parse-xml', upload.single('xml_file'), async (req, res) => {
     );
 
     if (existingSchedules.length > 0) {
-      // Verificar se algum agendamento não está cancelado
       const nonCancelledSchedules = existingSchedules.filter(schedule => 
         schedule.status !== 'Cancelado'
       );
 
       if (nonCancelledSchedules.length > 0) {
         const schedule = nonCancelledSchedules[0];
-        console.log(`❌ Chave NFe duplicada encontrada: ID ${schedule.id}, Status: ${schedule.status}`);
         
         return res.status(409).json({
           error: 'Chave de acesso já cadastrada',
@@ -1716,11 +1434,7 @@ router.post('/parse-xml', upload.single('xml_file'), async (req, res) => {
             number: schedule.number
           }
         });
-      } else {
-        console.log(`✅ Chave NFe encontrada, mas todos os agendamentos estão cancelados. Permitindo continuação.`);
       }
-    } else {
-      console.log(`✅ Nenhum agendamento encontrado com a chave NFe. Permitindo continuação.`);
     }
 
     // Se passou na verificação, retornar os dados parseados
@@ -1745,13 +1459,13 @@ router.get('/stats/summary', async (req, res) => {
   try {
     // Construir a consulta com base no nível de acesso do usuário
     let query = `SELECT 
-      COUNT(*) as total,
+        COUNT(*) as total,
       COUNT(CASE WHEN status = 'Solicitado' THEN 1 END) as solicitado,
-      COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing,
-      COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
-      COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
-      SUM(case_count) as total_cases,
-      SUM(qt_prod) as total_products
+        COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
+        SUM(case_count) as total_cases,
+        SUM(qt_prod) as total_products
      FROM schedule_list`;
     
     // Adicionar filtro de cli_access para usuários que não têm acesso total
@@ -1794,4 +1508,4 @@ router.get('/stats/summary', async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router; 

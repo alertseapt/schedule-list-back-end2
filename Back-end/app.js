@@ -63,29 +63,8 @@ app.use(express.urlencoded({
   parameterLimit: 50000
 }));
 
-// Middleware para debug de headers grandes
+// Middleware para logging simplificado
 app.use((req, res, next) => {
-  // Calcular tamanho total dos headers
-  const headerSize = JSON.stringify(req.headers).length;
-  console.log(`📊 Request: ${req.method} ${req.url} - Origin: ${req.headers.origin || 'null'}`);
-  console.log(`📏 Tamanho dos headers: ${headerSize} bytes`);
-  
-  // Mostrar todos os headers para debug
-  console.log('🔍 Headers recebidos:');
-  Object.entries(req.headers).forEach(([key, value]) => {
-    const size = String(value).length;
-    const preview = size > 100 ? String(value).substring(0, 100) + '...' : value;
-    console.log(`   ${key}: ${preview} (${size} bytes)`);
-    
-    if (size > 1000) {
-      console.warn(`🔴 Header grande: ${key} = ${size} bytes`);
-    }
-  });
-  
-  if (headerSize > 8000) {
-    console.warn(`⚠️ Headers muito grandes! ${headerSize} bytes`);
-  }
-  
   next();
 });
 
@@ -249,70 +228,29 @@ async function startServer() {
     const http = require('http');
     const originalCreateServer = http.createServer;
     
-    console.log('🔧 Configurando interceptor de requisições HTTP...');
     
-    // Testar conexões com os bancos de dados
-    console.log('🔄 Testando conexões com os bancos de dados...');
     const dbHealthy = await testConnections();
     
-    if (!dbHealthy) {
-      console.error('❌ Falha na conexão com os bancos de dados');
-      console.log('⚠️  MODO DE DESENVOLVIMENTO: Iniciando servidor sem banco de dados');
-      console.log('📧 Sistema de e-mail disponível para testes');
-      console.log('🚫 Funcionalidades que dependem do banco estarão indisponíveis');
-    } else {
+    if (dbHealthy) {
       console.log('✅ Conexões com os bancos de dados estabelecidas');
       
-      // ===== INICIALIZAÇÃO DE SERVIÇOS =====
-      
-      // DP Scheduler Service - Busca automática de DP
-      console.log('🚀 Inicializando serviço de agendamento de busca de DP...');
+      // Inicializar serviços
       const dpSchedulerService = require('./services/dpSchedulerService');
-      
-      // DP Status Monitoring Service - Monitoramento de situação DP
-      console.log('🚀 Inicializando serviço de monitoramento de status DP...');
       const DPStatusMonitoringService = require('./services/dpStatusMonitoringService');
       const dpStatusService = new DPStatusMonitoringService();
       
       setTimeout(() => {
-        console.log('🔍 Iniciando DPSchedulerService...');
         dpSchedulerService.start();
-        console.log('✅ DPSchedulerService iniciado automaticamente');
-        console.log('📊 Busca de DP: 5 min após criação, repete a cada 5 min, máx 10 tentativas');
-        console.log('🗃️ Consultando dados em dbmercocamp.wtr');
-        
-        console.log('🔍 Iniciando DPStatusMonitoringService...');
         dpStatusService.start();
-        console.log('✅ DPStatusMonitoringService iniciado automaticamente');
-        console.log('📊 Monitoramento: verifica situação "Fechado" a cada 30s');
-        console.log('🗃️ Atualiza status para "Em estoque" automaticamente');
-      }, 5000); // Aguardar 5 segundos para garantir que as conexões estejam prontas
+        console.log('✅ Serviços de monitoramento iniciados');
+      }, 5000);
+    } else {
+      console.error('❌ Falha na conexão com os bancos de dados');
     }
     
-    // Iniciar servidor com configurações HTTP aumentadas
+    // Iniciar servidor
     const server = app.listen(PORT, () => {
-      console.log('\n🚀 Servidor iniciado com sucesso!');
-      console.log(`📡 Porta: ${PORT}`);
-      console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
-      console.log(`📚 Documentação: http://localhost:${PORT}/api/info`);
-      console.log('\n📋 Estrutura dos bancos de dados:');
-      console.log('   📊 dbusers.users: Sistema de usuários com níveis de acesso');
-      console.log('   📊 dbcheckin.products: Relacionamentos cliente-fornecedor');
-      console.log('   📊 dbcheckin.schedule_list: Agendamentos de entrega/NFe');
-      console.log('   📊 dbmercocamp.wtr: Tabela com números de DP');
-      console.log('\n🔐 Credenciais de teste:');
-      console.log('   👑 president/president (nível 1 - admin)');
-      console.log('   🛠️  dev/dev (nível 0 - usuário)');
-      console.log('   👨‍💼 manager/manager (nível 2 - gerente)');
-      console.log('\n📚 Endpoints disponíveis:');
-      console.log('   🔑 POST /api/auth/login - Login');
-      console.log('   🔑 POST /api/auth/register - Registrar usuário');
-      console.log('   👥 GET /api/users - Listar usuários');
-      console.log('   📦 GET /api/products - Listar produtos/relacionamentos');
-      console.log('   📅 GET /api/schedules - Listar agendamentos');
-      console.log('   🔍 GET /api/dp-verification/status - Status verificação DP');
-      console.log('   🏥 GET /api/health - Status da API');
+      console.log(`🚀 Servidor iniciado na porta ${PORT}`);
     });
     
     // Configurar limites do servidor HTTP
@@ -323,31 +261,7 @@ async function startServer() {
     
     // Handler para erro 431 e outros erros de conexão
     server.on('clientError', (err, socket) => {
-      console.error('🔴 Erro do cliente:', err.message);
-      console.error('🔍 Código do erro:', err.code);
-      console.error('🔍 Stack:', err.stack);
-      
       if (err.code === 'HPE_HEADER_OVERFLOW') {
-        console.error('❌ Headers muito grandes detectados!');
-        console.error('📊 Limite atual: 64KB');
-        
-        // Tentar extrair informações do socket
-        if (socket.parser && socket.parser.incoming) {
-          const req = socket.parser.incoming;
-          console.error('🔍 URL da requisição:', req.url);
-          console.error('🔍 Método:', req.method);
-          if (req.headers) {
-            console.error('🔍 Headers parciais capturados:');
-            Object.entries(req.headers).forEach(([key, value]) => {
-              const size = String(value).length;
-              console.error(`   ${key}: ${size} bytes`);
-              if (size > 1000) {
-                console.error(`     Preview: ${String(value).substring(0, 200)}...`);
-              }
-            });
-          }
-        }
-        
         socket.end('HTTP/1.1 431 Request Header Fields Too Large\r\n' +
                    'Access-Control-Allow-Origin: *\r\n' +
                    'Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n' +
@@ -371,20 +285,10 @@ async function startServer() {
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('📴 SIGTERM recebido, encerrando servidor...');
-  
-  // Parar serviço de verificação de DP - TEMPORARIAMENTE DESABILITADO
-  // dpVerificationService.stop();
-  
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('📴 SIGINT recebido, encerrando servidor...');
-  
-  // Parar serviço de verificação de DP - TEMPORARIAMENTE DESABILITADO  
-  // dpVerificationService.stop();
-  
   process.exit(0);
 });
 

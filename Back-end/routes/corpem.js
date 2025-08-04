@@ -14,7 +14,7 @@ router.use(authenticateToken);
  */
 router.get('/test-connection', requireAdmin, async (req, res) => {
   try {
-    console.log('🔄 Testando conexão com Corpem WMS');
+    console.log('Testando conexão com Corpem WMS');
     
     const result = await corpemService.testConnection();
     
@@ -43,9 +43,8 @@ router.post('/integrate-products/:scheduleId', requireAdmin, async (req, res) =>
   try {
     const { scheduleId } = req.params;
     
-    console.log('🔄 Iniciando integração de produtos para agendamento:', scheduleId);
+    console.log('Iniciando integração de produtos - Agendamento:', scheduleId);
     
-    // Buscar dados do agendamento
     const schedules = await executeCheckinQuery(
       `SELECT 
         id, number, nfe_key, client, case_count, date, status, historic, supplier, qt_prod, info, observations
@@ -63,7 +62,6 @@ router.post('/integrate-products/:scheduleId', requireAdmin, async (req, res) =>
 
     const schedule = schedules[0];
     
-    // Processar campo info se for string
     if (schedule.info && typeof schedule.info === 'string') {
       try {
         schedule.info = JSON.parse(schedule.info);
@@ -72,7 +70,6 @@ router.post('/integrate-products/:scheduleId', requireAdmin, async (req, res) =>
       }
     }
 
-    // Verificar se agendamento tem produtos
     const products = corpemService.extractProductsFromSchedule(schedule);
     if (!products || products.length === 0) {
       return res.status(400).json({
@@ -81,10 +78,8 @@ router.post('/integrate-products/:scheduleId', requireAdmin, async (req, res) =>
       });
     }
 
-    // Integrar produtos no Corpem
     const result = await corpemService.registerProducts(schedule);
     
-    // Registrar log da integração
     await logCorpemIntegration(scheduleId, 'products', result, req.user.user);
     
     res.json({
@@ -114,9 +109,8 @@ router.post('/integrate-nf-entry/:scheduleId', requireAdmin, async (req, res) =>
   try {
     const { scheduleId } = req.params;
     
-    console.log('🔄 Iniciando integração de NF de entrada para agendamento:', scheduleId);
+    console.log('Iniciando integração de NF de entrada - Agendamento:', scheduleId);
     
-    // Buscar dados do agendamento
     const schedules = await executeCheckinQuery(
       `SELECT 
         id, number, nfe_key, client, case_count, date, status, historic, supplier, qt_prod, info, observations
@@ -134,7 +128,6 @@ router.post('/integrate-nf-entry/:scheduleId', requireAdmin, async (req, res) =>
 
     const schedule = schedules[0];
     
-    // Processar campo info se for string
     if (schedule.info && typeof schedule.info === 'string') {
       try {
         schedule.info = JSON.parse(schedule.info);
@@ -143,10 +136,8 @@ router.post('/integrate-nf-entry/:scheduleId', requireAdmin, async (req, res) =>
       }
     }
 
-    // Integrar NF de entrada no Corpem
     const result = await corpemService.registerNfEntry(schedule);
     
-    // Registrar log da integração
     await logCorpemIntegration(scheduleId, 'nf_entry', result, req.user.user);
     
     res.json({
@@ -173,45 +164,24 @@ router.post('/integrate-nf-entry/:scheduleId', requireAdmin, async (req, res) =>
  */
 async function triggerProductsIntegration(scheduleData, userId = 'system') {
   try {
-    console.log('\n🔥🔥🔥 TRIGGER PRODUTOS DISPARADO 🔥🔥🔥');
-    console.log('🤖 Trigger automático: integrando produtos para agendamento', scheduleData.id);
-    console.log('👤 Usuário:', userId);
-    console.log('📋 Dados do agendamento:', {
-      id: scheduleData.id,
-      client: scheduleData.client,
-      number: scheduleData.number,
-      status: scheduleData.status
-    });
+    console.log(`Trigger produtos disparado - Agendamento ${scheduleData.id} por ${userId}`);
     
-    // Verificar se configuração do Corpem está válida
-    console.log('🔍 Verificando configurações do Corpem...');
     if (!corpemService.isConfigValid()) {
-      console.log('❌ Configurações do Corpem não estão válidas, pulando integração');
       return { success: false, message: 'Configurações do Corpem incompletas' };
     }
-    console.log('✅ Configurações do Corpem válidas');
 
-    // Verificar se tem produtos
-    console.log('🔍 Extraindo produtos do agendamento...');
     const products = corpemService.extractProductsFromSchedule(scheduleData);
     if (!products || products.length === 0) {
-      console.log('❌ Nenhum produto encontrado, pulando integração');
       return { success: false, message: 'Nenhum produto encontrado' };
     }
-    console.log(`✅ Encontrados ${products.length} produtos para integração`);
 
-    // Integrar produtos
-    console.log('🚀 Chamando corpemService.registerProducts...');
     const result = await corpemService.registerProducts(scheduleData);
-    console.log('📥 Resultado da integração de produtos:', result);
-    
-    // Registrar log
     await logCorpemIntegration(scheduleData.id, 'products', result, userId);
     
     return result;
 
   } catch (error) {
-    console.error('Erro no trigger de integração de produtos:', error);
+    console.error(`Erro no trigger de integração de produtos (ID: ${scheduleData.id}):`, error);
     await logCorpemIntegration(scheduleData.id, 'products', {
       success: false,
       message: error.message,
@@ -228,36 +198,19 @@ async function triggerProductsIntegration(scheduleData, userId = 'system') {
  */
 async function triggerNfEntryIntegration(scheduleData, userId = 'system') {
   try {
-    console.log('\n🔥🔥🔥 TRIGGER NF ENTRY DISPARADO 🔥🔥🔥');
-    console.log('🤖 Trigger automático: integrando NF de entrada para agendamento', scheduleData.id);
-    console.log('👤 Usuário:', userId);
-    console.log('📋 Dados do agendamento:', {
-      id: scheduleData.id,
-      client: scheduleData.client,
-      number: scheduleData.number,
-      status: scheduleData.status
-    });
+    console.log(`Trigger NF entry disparado - Agendamento ${scheduleData.id} por ${userId}`);
     
-    // Verificar se configuração do Corpem está válida
-    console.log('🔍 Verificando configurações do Corpem...');
     if (!corpemService.isConfigValid()) {
-      console.log('❌ Configurações do Corpem não estão válidas, pulando integração');
       return { success: false, message: 'Configurações do Corpem incompletas' };
     }
-    console.log('✅ Configurações do Corpem válidas');
 
-    // Integrar NF de entrada
-    console.log('🚀 Chamando corpemService.registerNfEntry...');
     const result = await corpemService.registerNfEntry(scheduleData);
-    console.log('📥 Resultado da integração de NF:', result);
-    
-    // Registrar log
     await logCorpemIntegration(scheduleData.id, 'nf_entry', result, userId);
     
     return result;
 
   } catch (error) {
-    console.error('Erro no trigger de integração de NF de entrada:', error);
+    console.error(`Erro no trigger de integração de NF entry (ID: ${scheduleData.id}):`, error);
     await logCorpemIntegration(scheduleData.id, 'nf_entry', {
       success: false,
       message: error.message,
@@ -291,21 +244,16 @@ router.post('/reprocess-integrations/:scheduleId', async (req, res) => {
     const schedule = scheduleData[0];
     const userId = req.user?.user || req.user?.name || 'system';
     
-    console.log(`🔄 Reprocessando integrações para agendamento ${scheduleId}`);
+    console.log(`Reprocessando integrações - Agendamento ${scheduleId}`);
     
-    // Reprocessar integração de produtos
-    console.log('🔄 Reprocessando integração de produtos...');
     const productsResult = await triggerProductsIntegration(schedule, userId);
-    console.log('📥 Resultado reprocessamento produtos:', productsResult);
     
-    // Reprocessar integração de NF apenas se produtos foram bem-sucedidos
     let nfResult = null;
     if (productsResult.success) {
-      console.log('🔄 Produtos reprocessados com sucesso! Reprocessando integração de NF...');
+      console.log(`Produtos reprocessados com sucesso - processando NF (ID: ${scheduleId})`);
       nfResult = await triggerNfEntryIntegration(schedule, userId);
-      console.log('📥 Resultado reprocessamento NF:', nfResult);
     } else {
-      console.log('🚫 Produtos falharam, NF não será reprocessada');
+      console.log(`Produtos falharam, NF não será reprocessada (ID: ${scheduleId})`);
     }
     
     // Preparar resposta
@@ -383,7 +331,6 @@ router.get('/integration-logs', requireAdmin, async (req, res) => {
   } catch (error) {
     // Se a tabela não existir, retornar array vazio
     if (error.code === 'ER_NO_SUCH_TABLE') {
-      console.log('⚠️ Tabela corpem_integration_logs não existe ainda, retornando lista vazia');
       return res.json({
         logs: [],
         pagination: {
@@ -645,7 +592,6 @@ async function logCorpemIntegration(scheduleId, integrationType, result, userId)
   } catch (error) {
     // Se a tabela não existir, tentar criá-la automaticamente
     if (error.code === 'ER_NO_SUCH_TABLE') {
-      console.log('📋 Tabela corpem_integration_logs não existe, criando automaticamente...');
       
       try {
         // Criar a tabela
@@ -667,7 +613,6 @@ async function logCorpemIntegration(scheduleId, integrationType, result, userId)
           ) COMMENT = 'Logs das integrações com Corpem WMS'
         `);
         
-        console.log('✅ Tabela corpem_integration_logs criada com sucesso');
         
         // Tentar inserir o log novamente
         await executeCheckinQuery(
@@ -684,7 +629,6 @@ async function logCorpemIntegration(scheduleId, integrationType, result, userId)
           ]
         );
         
-        console.log('✅ Log de integração Corpem registrado após criação da tabela');
         
       } catch (createError) {
         console.error('❌ Erro ao criar tabela corpem_integration_logs:', createError);

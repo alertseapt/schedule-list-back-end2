@@ -38,8 +38,8 @@ const productSchemas = {
 const hasClientAccess = (userCliAccess, clientCnpj) => {
   // Se não estamos em um contexto de requisição, usamos a verificação direta
   if (!global.currentRequest || !global.currentRequest.user) {
-    if (!userCliAccess || typeof userCliAccess !== 'object') return false;
-    return Object.keys(userCliAccess).includes(clientCnpj);
+  if (!userCliAccess || typeof userCliAccess !== 'object') return false;
+  return Object.keys(userCliAccess).includes(clientCnpj);
   }
   
   // Se estamos em um contexto de requisição, usamos a função com cache
@@ -549,4 +549,4 @@ router.post('/batch-prefill', async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router; 

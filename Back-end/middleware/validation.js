@@ -67,6 +67,7 @@ const nfeSchemas = {
       supplier_name: Joi.string().max(100).required(),
       case_count: Joi.number().integer().min(0).required(),
       date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
+      qt_prod: Joi.number().integer().min(0).optional(),
       stock_location: Joi.string().max(100).allow('', null).optional(),
       products: Joi.array().items(Joi.object({
         supp_code: Joi.string().max(50).required(),

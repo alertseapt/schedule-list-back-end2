@@ -33,7 +33,7 @@ const authenticateToken = async (req, res, next) => {
 
       userData = users[0];
     } catch (dbError) {
-      console.warn('⚠️ Problema de conectividade com dbusers, usando dados do token como fallback:', dbError.message);
+      console.warn('Problema de conectividade com dbusers, usando dados do token como fallback:', dbError.message);
       
       // Fallback: usar dados básicos do token quando há problemas de conectividade
       // Isso permite que o sistema continue funcionando durante problemas de rede
