@@ -30,10 +30,6 @@ class EmailService {
 
     this.transporter = nodemailer.createTransport(smtpConfig);
 
-    console.log('📧 EmailService inicializado com configurações SMTP:');
-    console.log(`   Host: ${smtpConfig.host}`);
-    console.log(`   Port: ${smtpConfig.port}`);
-    console.log(`   User: ${smtpConfig.auth.user}`);
   }
 
   /**
@@ -591,14 +587,12 @@ class EmailService {
       );
 
       if (users.length === 0) {
-        console.log(`⚠️ Usuário ${userId} não encontrado`);
-        return null;
+          return null;
       }
 
       const userConfig = users[0].config;
       if (!userConfig) {
-        console.log(`⚠️ Usuário ${userId} não possui configurações`);
-        return null;
+          return null;
       }
 
       const config = typeof userConfig === 'string' ? JSON.parse(userConfig) : userConfig;
@@ -644,25 +638,16 @@ class EmailService {
   async sendStatusChangeNotification(userId, scheduleData, oldStatus, newStatus, user, comment) {
     try {
       const isCreation = oldStatus === null || oldStatus === undefined;
-      console.log('📧 Iniciando envio de notificação de alteração de status...');
-      console.log(`   Usuário: ${userId}`);
-      console.log(`   Status: ${oldStatus || 'Novo'} → ${newStatus}`);
-      console.log(`   É criação: ${isCreation}`);
 
-      // Buscar configurações do usuário
       const emailSettings = await this.getUserEmailSettings(userId);
       
-      // Verificar se deve enviar para este status
       if (!this.shouldSendNotification(emailSettings, newStatus, isCreation)) {
-        console.log(`⚠️ Notificação desabilitada para status: ${newStatus}`);
         return { success: false, reason: `Notificação desabilitada para status ${newStatus}` };
       }
 
-      // Preparar lista de destinatários
       let recipients = [];
       
       if (emailSettings) {
-        // Usar configurações específicas se existirem
         if (emailSettings.primaryEmail) {
           recipients.push(emailSettings.primaryEmail);
         }
@@ -672,17 +657,12 @@ class EmailService {
         }
       }
 
-      // Se não há destinatários das configurações, pular envio silenciosamente
       if (recipients.length === 0) {
-        console.log('ℹ️ Usuário não possui configurações de e-mail - pulando envio de notificação');
-        console.log('   Para receber notificações por e-mail, configure nas configurações da conta');
         return { success: true, reason: 'Nenhum e-mail configurado - envio pulado', skipped: true };
       }
 
-      // Gerar template HTML
       const htmlBody = await this.generateStatusChangeTemplate(scheduleData, oldStatus, newStatus, user, comment);
 
-      // Configurar e-mail
       const mailOptions = {
         from: `"${process.env.SMTP_SENDER_NAME || 'Sistema de Agendamentos'}" <${process.env.SMTP_SENDER_EMAIL || process.env.SMTP_USER}>`,
         to: recipients.join(', '),
@@ -692,12 +672,7 @@ class EmailService {
         html: htmlBody
       };
 
-      // Enviando e-mail...
-
-      // Enviar e-mail
       const info = await this.transporter.sendMail(mailOptions);
-
-      // E-mail enviado com sucesso
 
       return {
         success: true,
@@ -706,7 +681,7 @@ class EmailService {
       };
 
     } catch (error) {
-      console.error('❌ Erro ao enviar e-mail:', error);
+      console.error(`Erro ao enviar e-mail de notificação (ID: ${scheduleData.id}):`, error.message);
       return {
         success: false,
         error: error.message
@@ -719,15 +694,11 @@ class EmailService {
    */
   async sendTestEmail(recipients) {
     try {
-      console.log('📧 Enviando e-mail de teste...');
-      
-      // Processar múltiplos destinatários separados por ";"
       const recipientList = Array.isArray(recipients) 
         ? recipients 
         : recipients.split(';').map(email => email.trim()).filter(email => email);
 
       if (recipientList.length === 0) {
-        console.log('ℹ️ Nenhum destinatário fornecido para teste de e-mail - pulando envio');
         return {
           success: true,
           reason: 'Nenhum destinatário fornecido - teste pulado',
@@ -735,10 +706,8 @@ class EmailService {
         };
       }
 
-      // Gerar template HTML
       const htmlBody = this.generateTestTemplate();
 
-      // Configurar e-mail
       const mailOptions = {
         from: `"${process.env.SMTP_SENDER_NAME || 'Sistema de Agendamentos'}" <${process.env.SMTP_SENDER_EMAIL || process.env.SMTP_USER}>`,
         to: recipientList.join(', '),
@@ -746,14 +715,9 @@ class EmailService {
         html: htmlBody
       };
 
-      console.log('📤 Enviando e-mail de teste...');
-      console.log(`   Para: ${recipientList.join(', ')}`);
-
-      // Enviar e-mail
       const info = await this.transporter.sendMail(mailOptions);
 
-      console.log('✅ E-mail de teste enviado com sucesso!');
-      console.log(`   Message ID: ${info.messageId}`);
+      console.log(`E-mail de teste enviado com sucesso - Recipients: ${recipientList.length}`);
 
       return {
         success: true,
@@ -762,7 +726,7 @@ class EmailService {
       };
 
     } catch (error) {
-      console.error('❌ Erro ao enviar e-mail de teste:', error);
+      console.error('Erro ao enviar e-mail de teste:', error);
       return {
         success: false,
         error: error.message
@@ -776,10 +740,9 @@ class EmailService {
   async verifyConnection() {
     try {
       await this.transporter.verify();
-      console.log('✅ Conexão SMTP verificada com sucesso');
       return true;
     } catch (error) {
-      console.error('❌ Erro na verificação SMTP:', error);
+      console.error('Erro na verificação SMTP:', error);
       return false;
     }
   }

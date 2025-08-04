@@ -4,7 +4,7 @@ const { executeMercocampQuery, executeCheckinQuery } = require('../config/databa
  * Serviço de Verificação de DP com Validação de Data
  * 
  * Versão aprimorada que verifica se a dt_inclusao do DP corresponde
- * à data de alteração do status para "Agendado" no histórico
+ * à data de alteração do status para "Conferência" no histórico
  */
 class DPVerificationServiceWithDate {
   constructor() {
@@ -32,12 +32,12 @@ class DPVerificationServiceWithDate {
       console.log(`${logPrefix}    NF: ${nfNumber}`);
       console.log(`${logPrefix}    CNPJ: ${cnpj}`);
 
-      // 1. OBRIGATÓRIO: Extrair data de alteração para "Agendado" do histórico
-      let agendadoDate = null;
+      // 1. OBRIGATÓRIO: Extrair data de alteração para "Conferência" do histórico
+      let conferenciaDate = null;
       if (scheduleId) {
-        agendadoDate = await this.extractAgendadoDateFromHistory(scheduleId);
-        if (agendadoDate) {
-          console.log(`${logPrefix} 📅 Data alteração para Agendado: ${agendadoDate}`);
+        conferenciaDate = await this.extractConferenciaDateFromHistory(scheduleId);
+        if (conferenciaDate) {
+          console.log(`${logPrefix} 📅 Data alteração para Conferência: ${conferenciaDate}`);
         } else {
           console.log(`${logPrefix} ❌ Data do histórico não encontrada - BLOQUEANDO busca`);
           this.statistics.failures++;
@@ -63,7 +63,7 @@ class DPVerificationServiceWithDate {
         LIMIT 1
       `;
       
-      const params = [nfNumber, cnpj, agendadoDate];
+      const params = [nfNumber, cnpj, conferenciaDate];
       const results = await executeMercocampQuery(query, params);
       
       if (results.length > 0) {
@@ -73,11 +73,11 @@ class DPVerificationServiceWithDate {
         const wtrDate = new Date(result.dt_inclusao);
         const wtrDateStr = wtrDate.toISOString().split('T')[0];
         
-        if (wtrDateStr === agendadoDate) {
+        if (wtrDateStr === conferenciaDate) {
           console.log(`${logPrefix} ✅ DP encontrado com triangulação válida: ${result.no_dp}`);
           console.log(`${logPrefix}    ✓ NF: ${result.no_nf} = ${nfNumber}`);
           console.log(`${logPrefix}    ✓ CNPJ: ${result.cnpj} = ${cnpj}`);
-          console.log(`${logPrefix}    ✓ Data: ${wtrDateStr} = ${agendadoDate}`);
+          console.log(`${logPrefix}    ✓ Data: ${wtrDateStr} = ${conferenciaDate}`);
           
           this.statistics.successes++;
           this.statistics.date_matches++;
@@ -99,7 +99,7 @@ class DPVerificationServiceWithDate {
           };
         } else {
           console.log(`${logPrefix} ❌ DP encontrado mas data não confere:`);
-          console.log(`${logPrefix}    Data WTR: ${wtrDateStr} ≠ Data histórico: ${agendadoDate}`);
+          console.log(`${logPrefix}    Data WTR: ${wtrDateStr} ≠ Data histórico: ${conferenciaDate}`);
           this.statistics.date_mismatches++;
         }
       }
@@ -134,11 +134,11 @@ class DPVerificationServiceWithDate {
       console.log(`${logPrefix}    Cliente: ${clientNumber || 'N/A'}`);
 
       // 1. Extrair data de alteração para "Agendado" do histórico
-      let agendadoDate = null;
+      let conferenciaDate = null;
       if (scheduleId) {
-        agendadoDate = await this.extractAgendadoDateFromHistory(scheduleId);
-        if (agendadoDate) {
-          console.log(`${logPrefix} 📅 Data alteração para Agendado: ${agendadoDate}`);
+        conferenciaDate = await this.extractConferenciaDateFromHistory(scheduleId);
+        if (conferenciaDate) {
+          console.log(`${logPrefix} 📅 Data alteração para Conferência: ${conferenciaDate}`);
         } else {
           console.log(`${logPrefix} ⚠️ Não foi possível extrair data do histórico`);
         }
@@ -161,7 +161,7 @@ class DPVerificationServiceWithDate {
           nfNumber, 
           cnpj, 
           clientNumber, 
-          agendadoDate,
+          conferenciaDate,
           logPrefix
         );
 
@@ -186,9 +186,9 @@ class DPVerificationServiceWithDate {
   }
 
   /**
-   * Extrai a data de alteração para "Agendado" do histórico do agendamento
+   * Extrai a data de alteração para "Conferência" do histórico do agendamento
    */
-  async extractAgendadoDateFromHistory(scheduleId) {
+  async extractConferenciaDateFromHistory(scheduleId) {
     try {
       const [schedule] = await executeCheckinQuery(
         'SELECT historic FROM schedule_list WHERE id = ?',
@@ -210,26 +210,25 @@ class DPVerificationServiceWithDate {
           return null;
         }
       } catch (parseError) {
-        console.log(`[DP-DATE] ⚠️ Erro ao parsear histórico: ${parseError.message}`);
         return null;
       }
 
-      // Procurar entrada de alteração para "Agendado"
-      const agendadoEntries = Object.values(historic).filter(entry => 
+      // Procurar entrada de alteração para "Conferência"
+      const conferenciaEntries = Object.values(historic).filter(entry => 
         entry && (
-          entry.new_status === 'Agendado' ||
-          (entry.action && entry.action.toLowerCase().includes('agendado'))
+          entry.new_status === 'Conferência' ||
+          (entry.action && entry.action.toLowerCase().includes('conferência'))
         )
       );
 
-      if (agendadoEntries.length > 0) {
+      if (conferenciaEntries.length > 0) {
         // Pegar a entrada mais recente
-        const latestEntry = agendadoEntries.sort((a, b) => 
+        const latestEntry = conferenciaEntries.sort((a, b) => 
           new Date(b.timestamp) - new Date(a.timestamp)
         )[0];
 
-        const agendadoDate = new Date(latestEntry.timestamp);
-        return agendadoDate.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+        const conferenciaDate = new Date(latestEntry.timestamp);
+        return conferenciaDate.toISOString().split('T')[0]; // Formato YYYY-MM-DD
       }
 
       return null;
@@ -242,11 +241,11 @@ class DPVerificationServiceWithDate {
   /**
    * Executa uma estratégia específica de busca
    */
-  async executeSearchStrategy(strategy, nfNumber, cnpj, clientNumber, agendadoDate, logPrefix) {
+  async executeSearchStrategy(strategy, nfNumber, cnpj, clientNumber, conferenciaDate, logPrefix) {
     try {
       let query = '';
       let params = [];
-      let includeDate = strategy.name.includes('with_date') && agendadoDate;
+      let includeDate = strategy.name.includes('with_date') && conferenciaDate;
 
       switch (strategy.name) {
         case 'exact_match_with_date':
@@ -258,7 +257,7 @@ class DPVerificationServiceWithDate {
               AND DATE(dt_inclusao) = ?
             LIMIT 1
           `;
-          params = [nfNumber, cnpj, agendadoDate];
+          params = [nfNumber, cnpj, conferenciaDate];
           break;
 
         case 'flexible_nf_with_date':
@@ -270,7 +269,7 @@ class DPVerificationServiceWithDate {
               AND DATE(dt_inclusao) = ?
             LIMIT 1
           `;
-          params = [`%${nfNumber}%`, `${nfNumber},%`, `%,${nfNumber},%`, cnpj, agendadoDate];
+          params = [`%${nfNumber}%`, `${nfNumber},%`, `%,${nfNumber},%`, cnpj, conferenciaDate];
           break;
 
         case 'client_fallback_with_date':
@@ -283,7 +282,7 @@ class DPVerificationServiceWithDate {
               AND DATE(dt_inclusao) = ?
             LIMIT 1
           `;
-          params = [nfNumber, clientNumber, agendadoDate];
+          params = [nfNumber, clientNumber, conferenciaDate];
           break;
 
         case 'exact_match_no_date':
@@ -343,19 +342,19 @@ class DPVerificationServiceWithDate {
         const result = results[0];
         
         // Validar data se necessário
-        if (includeDate && agendadoDate) {
+        if (includeDate && conferenciaDate) {
           this.statistics.date_validations++;
           
           const wtrDate = new Date(result.dt_inclusao);
           const wtrDateStr = wtrDate.toISOString().split('T')[0];
           
-          if (wtrDateStr === agendadoDate) {
+          if (wtrDateStr === conferenciaDate) {
             console.log(`${logPrefix} ✅ DP encontrado com data válida: ${result.no_dp}`);
-            console.log(`${logPrefix}    Data WTR: ${wtrDateStr} = Data histórico: ${agendadoDate}`);
+            console.log(`${logPrefix}    Data WTR: ${wtrDateStr} = Data histórico: ${conferenciaDate}`);
             this.statistics.date_matches++;
           } else {
             console.log(`${logPrefix} ⚠️ DP encontrado mas data não confere:`);
-            console.log(`${logPrefix}    Data WTR: ${wtrDateStr} ≠ Data histórico: ${agendadoDate}`);
+            console.log(`${logPrefix}    Data WTR: ${wtrDateStr} ≠ Data histórico: ${conferenciaDate}`);
             this.statistics.date_mismatches++;
             
             // Se a estratégia exige data válida, continuar procurando
@@ -374,9 +373,9 @@ class DPVerificationServiceWithDate {
           situacao: result.situacao,
           strategy_used: strategy.name,
           strategy_level: strategy.level,
-          date_validated: includeDate && agendadoDate ? true : false,
-          date_match: includeDate && agendadoDate ? 
-            (new Date(result.dt_inclusao).toISOString().split('T')[0] === agendadoDate) : null,
+          date_validated: includeDate && conferenciaDate ? true : false,
+          date_match: includeDate && conferenciaDate ? 
+            (new Date(result.dt_inclusao).toISOString().split('T')[0] === conferenciaDate) : null,
           found_at: new Date().toISOString()
         };
       }
@@ -438,10 +437,10 @@ class DPVerificationServiceWithDate {
         [dpResult.dp_number, JSON.stringify(historic), scheduleId]
       );
 
-      console.log(`[DP-DATE][ID:${scheduleId}] ✅ DP ${dpResult.dp_number} salvo com validação de data`);
+      console.log(`DP ${dpResult.dp_number} atribuído ao agendamento ${scheduleId}`);
 
     } catch (error) {
-      console.error(`[DP-DATE][ID:${scheduleId}] ❌ Erro ao salvar DP:`, error.message);
+      console.error(`Erro ao salvar DP no agendamento ${scheduleId}:`, error.message);
       throw error;
     }
   }

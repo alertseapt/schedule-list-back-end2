@@ -4,7 +4,7 @@ const { executeCheckinQuery, executeMercocampQuery } = require('../config/databa
  * Serviço de Agendamento de Busca de DP
  * 
  * Este serviço gerencia a busca automática de números de DP após a criação
- * de agendamentos com status "Agendado". A busca:
+ * de agendamentos com status "Conferência". A busca:
  * - Inicia 5 minutos após a criação da DP no Corpem
  * - Repete a cada 5 minutos
  * - Máximo de 10 tentativas

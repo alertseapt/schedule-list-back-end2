@@ -12,8 +12,28 @@ const app = express();
 app.use(helmet());
 
 // Configuração do CORS para múltiplas origens
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:8080',
+  'null', // Para arquivos HTML abertos diretamente
+  'https://schedule-mercocamp-front-end2.vercel.app'
+];
+
 const corsOptions = {
-  origin: true, // TEMPORÁRIO: Permitir todas as origens para debug
+  origin: function (origin, callback) {
+    // Permitir requisições sem origin (como mobile apps ou Postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Não permitido pelo CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept', 'Cache-Control', 'Pragma', 'X-Large-Header']
@@ -217,40 +237,43 @@ app.use((err, req, res, next) => {
 });
 
 // Iniciar servidor
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
-    // Configurar limites do Node.js antes de iniciar
-    process.env.UV_THREADPOOL_SIZE = 128;
-    
-    // Interceptar requisições HTTP para debug
-    const http = require('http');
-    const originalCreateServer = http.createServer;
-    
-    
+    // Testar conexões com os bancos de dados
+    console.log('🔄 Testando conexões com os bancos de dados...');
     const dbHealthy = await testConnections();
     
-    if (dbHealthy) {
-      console.log('✅ Conexões com os bancos de dados estabelecidas');
-      
-      // Inicializar serviços
-      const dpSchedulerService = require('./services/dpSchedulerService');
-      const DPStatusMonitoringService = require('./services/dpStatusMonitoringService');
-      const dpStatusService = new DPStatusMonitoringService();
-      
-      setTimeout(() => {
-        dpSchedulerService.start();
-        dpStatusService.start();
-        console.log('✅ Serviços de monitoramento iniciados');
-      }, 5000);
-    } else {
+    if (!dbHealthy) {
       console.error('❌ Falha na conexão com os bancos de dados');
+      process.exit(1);
     }
+    
+    console.log('✅ Conexões com os bancos de dados estabelecidas');
     
     // Iniciar servidor
     const server = app.listen(PORT, () => {
-      console.log(`🚀 Servidor iniciado na porta ${PORT}`);
+      console.log('\n🚀 Servidor iniciado com sucesso!');
+      console.log(`📡 Porta: ${PORT}`);
+      console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
+      console.log(`📚 Documentação: http://localhost:${PORT}/api/info`);
+      console.log('\n📋 Estrutura dos bancos de dados:');
+      console.log('   📊 dbusers.users: Sistema de usuários com níveis de acesso');
+      console.log('   📊 dbcheckin.products: Relacionamentos cliente-fornecedor');
+      console.log('   📊 dbcheckin.schedule_list: Agendamentos de entrega/NFe');
+      console.log('\n🔐 Credenciais de teste:');
+      console.log('   👑 president/president (nível 1 - admin)');
+      console.log('   🛠️  dev/dev (nível 0 - usuário)');
+      console.log('   👨‍💼 manager/manager (nível 2 - gerente)');
+      console.log('\n📚 Endpoints disponíveis:');
+      console.log('   🔑 POST /api/auth/login - Login');
+      console.log('   🔑 POST /api/auth/register - Registrar usuário');
+      console.log('   👥 GET /api/users - Listar usuários');
+      console.log('   📦 GET /api/products - Listar produtos/relacionamentos');
+      console.log('   📅 GET /api/schedules - Listar agendamentos');
+      console.log('   🏥 GET /api/health - Status da API');
     });
     
     // Configurar limites do servidor HTTP
