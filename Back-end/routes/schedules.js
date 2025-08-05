@@ -1202,17 +1202,6 @@ router.patch('/:id/status', validate(paramSchemas.id, 'params'), validate(schedu
         .catch(error => {
           console.error('Erro nas integrações Corpem:', error.message);
         });
-    } else {
-      // Integração de NF para outros status
-      triggerNfEntryIntegration(updatedSchedule, req.user.user)
-        .then(result => {
-          if (result.success) {
-            console.log('✅ Integração NF concluída');
-          }
-        })
-        .catch(error => {
-          console.error('Erro na integração NF:', error.message);
-        });
     }
 
     // Preparar dados completos do agendamento para e-mail
