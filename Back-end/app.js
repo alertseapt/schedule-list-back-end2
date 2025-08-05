@@ -20,7 +20,8 @@ const allowedOrigins = [
   'http://127.0.0.1:3001',
   'http://127.0.0.1:8080',
   'null', // Para arquivos HTML abertos diretamente
-  'https://schedule-mercocamp-front-end2.vercel.app'
+  'https://schedule-mercocamp-front-end2.vercel.app',
+  'https://recebhomolog.mercocamptech.com.br'
 ];
 
 const corsOptions = {
