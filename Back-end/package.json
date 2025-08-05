@@ -4,7 +4,7 @@
   "description": "API para mediar comunicação entre front-end e banco de dados Heidi",
   "main": "app.js",
   "engines": {
-    "node": "20.x",
+    "node": ">=20.0.0",
     "npm": ">=9.0.0"
   },
   "scripts": {
