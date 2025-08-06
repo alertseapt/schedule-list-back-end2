@@ -287,7 +287,10 @@
                       v-model="product.client_code"
                       :disabled="product.isLocked"
                       @change="updateProduct(product)"
+                      @paste="handlePaste($event, product, 'client_code')"
                       class="form-control form-control-sm"
+                      :data-row="products.indexOf(product)"
+                      :data-col="1"
                     />
                   </td>
                   <td :title="product.supplier_description" class="description-cell">
@@ -298,7 +301,10 @@
                       v-model="product.client_description"
                       :disabled="product.isLocked"
                       @change="updateProduct(product)"
+                      @paste="handlePaste($event, product, 'client_description')"
                       class="form-control form-control-sm"
+                      :data-row="products.indexOf(product)"
+                      :data-col="3"
                     />
                   </td>
                   <td>{{ product.quantity }} {{ product.unit }}</td>
@@ -317,8 +323,11 @@
                     <input
                       v-model="product.ean_code"
                       @change="updateProduct(product)"
+                      @paste="handlePaste($event, product, 'ean_code')"
                       class="form-control form-control-sm"
                       placeholder="Código EAN"
+                      :data-row="products.indexOf(product)"
+                      :data-col="8"
                     />
                   </td>
                 </tr>
@@ -1215,6 +1224,128 @@ export default {
 
     handleModalClick(event) {
       event.stopPropagation()
+    },
+
+    handlePaste(event, currentProduct, fieldName) {
+      event.preventDefault()
+      
+      const clipboardData = event.clipboardData || window.clipboardData
+      const pastedText = clipboardData.getData('text')
+      
+      if (!pastedText) return
+      
+      // Separar por quebras de linha (linhas)
+      const lines = pastedText.split(/\r?\n/).filter(line => line.trim() !== '')
+      
+      if (lines.length === 1) {
+        // Uma única linha - separar por tabs (colunas)
+        const columns = lines[0].split('\t').filter(col => col.trim() !== '')
+        this.handleSingleRowPaste(currentProduct, fieldName, columns)
+      } else {
+        // Múltiplas linhas
+        this.handleMultipleRowsPaste(currentProduct, fieldName, lines)
+      }
+    },
+
+    handleSingleRowPaste(currentProduct, startField, columns) {
+      const currentRowIndex = this.products.indexOf(currentProduct)
+      if (currentRowIndex === -1) return
+      
+      // Mapear campos editáveis com suas posições na tabela
+      const editableFields = [
+        'client_code',      // col 1
+        'client_description', // col 3  
+        'ean_code'          // col 8
+      ]
+      
+      const startFieldIndex = editableFields.indexOf(startField)
+      if (startFieldIndex === -1) return
+      
+      // Aplicar dados nas colunas seguintes
+      for (let i = 0; i < columns.length && (startFieldIndex + i) < editableFields.length; i++) {
+        const fieldName = editableFields[startFieldIndex + i]
+        const product = this.products[currentRowIndex]
+        
+        if (product && !product.isLocked) {
+          product[fieldName] = columns[i].trim()
+          this.updateProduct(product)
+        }
+      }
+      
+      // Navegar para o próximo input
+      this.focusNextInput(currentRowIndex, startField, columns.length)
+    },
+
+    handleMultipleRowsPaste(currentProduct, fieldName, lines) {
+      const currentRowIndex = this.products.indexOf(currentProduct)
+      if (currentRowIndex === -1) return
+      
+      // Aplicar dados nas linhas seguintes
+      for (let i = 0; i < lines.length && (currentRowIndex + i) < this.products.length; i++) {
+        const product = this.products[currentRowIndex + i]
+        const lineData = lines[i].trim()
+        
+        if (product && !product.isLocked && lineData) {
+          // Se a linha contém tabs, dividir em colunas
+          const columns = lineData.split('\t').filter(col => col.trim() !== '')
+          
+          if (columns.length > 1) {
+            // Múltiplas colunas - aplicar em sequência
+            this.handleSingleRowPaste(product, fieldName, columns)
+          } else {
+            // Uma única coluna - aplicar apenas no campo atual
+            product[fieldName] = lineData
+            this.updateProduct(product)
+          }
+        }
+      }
+      
+      // Navegar para o próximo input após a última linha processada
+      const lastProcessedRow = Math.min(currentRowIndex + lines.length - 1, this.products.length - 1)
+      this.focusNextInput(lastProcessedRow, fieldName, 1)
+    },
+
+    focusNextInput(currentRow, currentField, columnsProcessed = 1) {
+      const editableFields = ['client_code', 'client_description', 'ean_code']
+      const currentFieldIndex = editableFields.indexOf(currentField)
+      
+      if (currentFieldIndex === -1) return
+      
+      let nextRow = currentRow
+      let nextFieldIndex = currentFieldIndex + columnsProcessed
+      
+      // Se ultrapassou as colunas da linha atual, vai para a próxima linha
+      if (nextFieldIndex >= editableFields.length) {
+        nextRow = currentRow + 1
+        nextFieldIndex = 0 // Primeira coluna da próxima linha
+      }
+      
+      // Verificar se existe a próxima linha
+      if (nextRow >= this.products.length) {
+        return // Não há mais linhas
+      }
+      
+      const nextField = editableFields[nextFieldIndex]
+      
+      // Usar setTimeout para garantir que o DOM foi atualizado
+      this.$nextTick(() => {
+        const selector = `input[data-row="${nextRow}"][data-col="${this.getColumnNumber(nextField)}"]`
+        const nextInput = document.querySelector(selector)
+        
+        if (nextInput && !nextInput.disabled) {
+          nextInput.focus()
+          nextInput.select()
+        }
+      })
+    },
+
+    getColumnNumber(fieldName) {
+      const columnMap = {
+        'client_code': 1,
+        'client_description': 3,
+        'ean_code': 8
+      }
+      return columnMap[fieldName] || 0
     },
   },
 }

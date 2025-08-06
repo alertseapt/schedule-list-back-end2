@@ -37,7 +37,12 @@ router.post('/check-duplicate', async (req, res) => {
   try {
     const { nfe_key } = req.body;
     
+    console.log(`🔍 VERIFICAÇÃO DUPLICIDADE`);
+    console.log(`   👤 Usuário: ${req.user?.user || 'desconhecido'}`);
+    console.log(`   🔑 Chave NFe recebida: ${nfe_key || 'vazia'}`);
+    
     if (!nfe_key) {
+      console.log(`   ❌ Chave NFe não fornecida`);
       return res.status(400).json({
         success: false,
         message: 'Chave NFe é obrigatória'
@@ -45,19 +50,35 @@ router.post('/check-duplicate', async (req, res) => {
     }
     
     const cleanNfeKey = nfe_key.toString().trim().replace(/[^\d]/g, '');
+    console.log(`   🧹 Chave limpa: ${cleanNfeKey} (${cleanNfeKey.length} caracteres)`);
     
+    if (cleanNfeKey.length !== 44) {
+      console.log(`   ⚠️ Chave NFe com tamanho inválido: ${cleanNfeKey.length} (esperado: 44)`);
+    }
+    
+    console.log(`   🔍 Consultando banco de dados...`);
     const existingSchedules = await executeCheckinQuery(
       'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?',
       [cleanNfeKey]
     );
     
+    console.log(`   📊 Agendamentos encontrados: ${existingSchedules.length}`);
+    
     if (existingSchedules.length > 0) {
+      console.log(`   📋 Detalhes dos agendamentos encontrados:`);
+      existingSchedules.forEach((schedule, index) => {
+        console.log(`      ${index + 1}. ID: ${schedule.id}, Status: ${schedule.status}, Cliente: ${schedule.client}, Número: ${schedule.number}`);
+      });
+      
       const activeSchedules = existingSchedules.filter(schedule => 
         schedule.status !== 'Cancelado' && schedule.status !== 'Recusado'
       );
       
+      console.log(`   🔍 Agendamentos ativos (não cancelados/recusados): ${activeSchedules.length}`);
+      
       if (activeSchedules.length > 0) {
         const activeSchedule = activeSchedules[0];
+        console.log(`   ❌ DUPLICATA ENCONTRADA: Agendamento ID ${activeSchedule.id} está ativo`);
         
         return res.status(409).json({
           success: false,
@@ -69,8 +90,14 @@ router.post('/check-duplicate', async (req, res) => {
             client: activeSchedule.client
           }
         });
+      } else {
+        console.log(`   ✅ Todos os agendamentos encontrados estão cancelados/recusados - pode prosseguir`);
       }
+    } else {
+      console.log(`   ✅ Nenhum agendamento encontrado com esta chave - pode prosseguir`);
     }
+    
+    console.log(`   ✅ Verificação concluída: NFe pode ser agendada`);
     
     return res.json({
       success: true,
@@ -91,17 +118,18 @@ router.post('/check-duplicate', async (req, res) => {
 // Schemas de validação para agendamentos (estrutura real: schedule_list)
 const scheduleSchemas = {
   create: Joi.object({
-    number: Joi.string().pattern(/^\d{1,10}$/).required(),
-    nfe_key: Joi.string().max(44).required(),
+    number: Joi.string().pattern(/^([A-Z]?\d{1,10}|0)$/).allow(null, '').optional(), // Opcional para agendamentos de marcação, permite 0 ou M prefix
+    nfe_key: Joi.string().max(44).allow(null, '').optional(), // Opcional para agendamentos de marcação
     client: Joi.string().min(1).max(100).required(), // Allow client name/CNPJ, more flexible than 14 chars
-    case_count: Joi.number().integer().min(0).required(),
-    date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
-    status: Joi.string().max(20).valid('Solicitado', 'Contestado', 'Agendado', 'Conferência', 'Tratativa', 'Estoque', 'Recusar', 'Cancelar', 'Recusado', 'Cancelado').default('Solicitado'),
+    case_count: Joi.number().integer().min(0).default(0), // Default 0 para agendamentos de marcação
+    date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).allow(null, '').optional(), // Opcional para agendamentos de marcação
+    status: Joi.string().max(20).valid('Solicitado', 'Contestado', 'Agendado', 'Conferência', 'Tratativa', 'Estoque', 'Recusar', 'Cancelar', 'Recusado', 'Cancelado', 'Marcação').default('Solicitado'),
     historic: Joi.object().default({}),
-    supplier: Joi.string().max(50).required(),
-    qt_prod: Joi.number().integer().min(0).required(),
+    supplier: Joi.string().max(50).default('Agendamento de Marcação'), // Default para agendamentos de marcação
+    qt_prod: Joi.number().integer().min(0).default(0), // Default 0 para agendamentos de marcação
     info: Joi.object().default({}),
-    observations: Joi.string().allow('', null).optional() // Add observations field
+    observations: Joi.string().allow('', null).optional(), // Add observations field
+    created_by: Joi.string().max(50).optional() // Campo para identificar o criador do agendamento de marcação
   }),
 
   update: Joi.object({
@@ -626,45 +654,85 @@ router.get('/:id', validate(paramSchemas.id, 'params'), async (req, res) => {
 });
 
 // Criar agendamento (apenas admin/manager)
-router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res) => {
+// Middleware personalizado para validar permissões de agendamento de marcação
+const validateSchedulePermissions = (req, res, next) => {
+  const { nfe_key } = req.body;
+  const isBookingSchedule = !nfe_key; // Agendamento de marcação não tem nfe_key
+  
+  if (isBookingSchedule) {
+    // Para agendamentos de marcação, apenas usuários com level_access != 1
+    if (req.user.level_access === 1) {
+      return res.status(403).json({
+        error: 'Acesso negado. Usuários de nível 1 não podem criar agendamentos de marcação.',
+      });
+    }
+  } else {
+    // Para agendamentos normais, usar requireAdmin
+    return requireAdmin(req, res, next);
+  }
+  
+  next();
+};
+
+router.post('/', authenticateToken, validateSchedulePermissions, validate(scheduleSchemas.create), async (req, res) => {
   try {
     const { 
       number, 
       nfe_key: nfeKey, 
       client, 
-      case_count, 
+      case_count = 0, 
       date, 
-      status = 'Solicitado', 
+      status, 
       historic = {},
       supplier,
-      qt_prod,
-      info
+      qt_prod = 0,
+      info = {},
+      created_by
     } = req.body;
     
-    // Verificação de duplicidade de chave NFe
-    const cleanNfeKey = nfeKey.toString().trim().replace(/[^\d]/g, '');
-    const query = 'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?';
-    const existingSchedules = await executeCheckinQuery(query, [cleanNfeKey]);
+    // Determinar se é agendamento de marcação
+    const isBookingSchedule = !nfeKey;
     
-    if (existingSchedules.length > 0) {
-      const nonCancelledSchedules = existingSchedules.filter(schedule => 
-        schedule.status !== 'Cancelado'
-      );
+    // Definir valores padrão baseados no tipo de agendamento
+    const finalStatus = status || (isBookingSchedule ? 'Marcação' : 'Solicitado');
+    const finalSupplier = supplier || (isBookingSchedule ? 'Agendamento de Marcação' : '');
+    // Gerar número padrão para agendamentos de marcação se não fornecido
+    const finalNumber = number || (isBookingSchedule ? '0' : ''); // '0' para marcações sem número
+    const finalDate = date || (isBookingSchedule ? new Date().toISOString().split('T')[0] : ''); // Data padrão para marcação
+    const finalInfo = isBookingSchedule ? {
+      ...info,
+      type: 'booking',
+      created_by: created_by || req.user.user,
+      created_at: new Date().toISOString(),
+      client_name: info.client_name || ''
+    } : info;
+    
+    // Verificação de duplicidade de chave NFe (apenas para agendamentos normais)
+    if (!isBookingSchedule) {
+      const cleanNfeKey = nfeKey.toString().trim().replace(/[^\d]/g, '');
+      const query = 'SELECT id, nfe_key, status, client, number FROM schedule_list WHERE REPLACE(REPLACE(nfe_key, " ", ""), "-", "") = ?';
+      const existingSchedules = await executeCheckinQuery(query, [cleanNfeKey]);
       
-      if (nonCancelledSchedules.length > 0) {
-        const schedule = nonCancelledSchedules[0];
+      if (existingSchedules.length > 0) {
+        const nonCancelledSchedules = existingSchedules.filter(schedule => 
+          schedule.status !== 'Cancelado'
+        );
         
-        return res.status(409).json({
-          error: 'Chave de acesso já cadastrada',
-          message: `Já existe um agendamento com esta chave de acesso (ID: ${schedule.id}, Status: ${schedule.status}). Apenas agendamentos cancelados permitem reutilização da chave.`,
-          conflicting_schedule: {
-            id: schedule.id,
-            nfe_key: schedule.nfe_key,
-            status: schedule.status,
-            client: schedule.client,
-            number: schedule.number
-          }
-        });
+        if (nonCancelledSchedules.length > 0) {
+          const schedule = nonCancelledSchedules[0];
+          
+          return res.status(409).json({
+            error: 'Chave de acesso já cadastrada',
+            message: `Já existe um agendamento com esta chave de acesso (ID: ${schedule.id}, Status: ${schedule.status}). Apenas agendamentos cancelados permitem reutilização da chave.`,
+            conflicting_schedule: {
+              id: schedule.id,
+              nfe_key: schedule.nfe_key,
+              status: schedule.status,
+              client: schedule.client,
+              number: schedule.number
+            }
+          });
+        }
       }
     }
     
@@ -679,13 +747,14 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
     }
 
     // Adicionar entrada inicial ao histórico
+    const actionText = isBookingSchedule ? 'Agendamento de marcação criado' : 'Agendamento criado';
     const initialHistoric = {
       ...historic,
       created: {
         timestamp: new Date().toISOString(),
         user: req.user.user,
-        action: 'Agendamento criado',
-        comment: 'Agendamento criado no sistema'
+        action: actionText,
+        comment: isBookingSchedule ? 'Agendamento de marcação criado no sistema' : 'Agendamento criado no sistema'
       }
     };
 
@@ -694,7 +763,7 @@ router.post('/', requireAdmin, validate(scheduleSchemas.create), async (req, res
       `INSERT INTO schedule_list 
        (number, nfe_key, client, case_count, date, status, historic, supplier, qt_prod, info) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [number, nfeKey, client, case_count, date, status, JSON.stringify(initialHistoric), supplier, qt_prod, JSON.stringify(info || {})]
+      [finalNumber, nfeKey, client, case_count, finalDate, finalStatus, JSON.stringify(initialHistoric), finalSupplier, qt_prod, JSON.stringify(finalInfo)]
     );
 
     const scheduleId = result.insertId;
@@ -1241,13 +1310,47 @@ router.patch('/:id/status', validate(paramSchemas.id, 'params'), validate(schedu
 });
 
 // Deletar agendamento (apenas admin/manager)
-router.delete('/:id', requireManager, validate(paramSchemas.id, 'params'), async (req, res) => {
+// Middleware personalizado para validar permissões de exclusão
+const validateDeletePermissions = async (req, res, next) => {
+  const { id } = req.params;
+  
+  // Buscar o agendamento para verificar se é de marcação
+  const existingSchedules = await executeCheckinQuery(
+    'SELECT id, client, nfe_key, status FROM schedule_list WHERE id = ?',
+    [id]
+  );
+
+  if (existingSchedules.length === 0) {
+    return res.status(404).json({
+      error: 'Agendamento não encontrado'
+    });
+  }
+  
+  const schedule = existingSchedules[0];
+  const isBookingSchedule = !schedule.nfe_key && schedule.status === 'Marcação';
+  
+  if (isBookingSchedule) {
+    // Para agendamentos de marcação, usuários com level_access != 1 podem excluir
+    if (req.user.level_access === 1) {
+      return res.status(403).json({
+        error: 'Acesso negado. Usuários de nível 1 não podem excluir agendamentos de marcação.',
+      });
+    }
+  } else {
+    // Para agendamentos normais, usar requireManager
+    return requireManager(req, res, next);
+  }
+  
+  next();
+};
+
+router.delete('/:id', authenticateToken, validateDeletePermissions, validate(paramSchemas.id, 'params'), async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Verificar se o agendamento existe
+    // Verificar se o agendamento existe (já verificado no middleware, mas mantendo para segurança)
     const existingSchedules = await executeCheckinQuery(
-      'SELECT id, client FROM schedule_list WHERE id = ?',
+      'SELECT id, client, nfe_key, status FROM schedule_list WHERE id = ?',
       [id]
     );
 
@@ -1257,9 +1360,12 @@ router.delete('/:id', requireManager, validate(paramSchemas.id, 'params'), async
       });
     }
     
+    const schedule = existingSchedules[0];
+    const isBookingSchedule = !schedule.nfe_key && schedule.status === 'Marcação';
+    
     // Verificação de acesso para CNPJ
     if (!req.user._clientAccessCache.hasFullAccess) {
-      const existingClient = existingSchedules[0].client;
+      const existingClient = schedule.client;
       
       if (!checkClientAccess(req, existingClient)) {
         return res.status(403).json({
@@ -1275,8 +1381,12 @@ router.delete('/:id', requireManager, validate(paramSchemas.id, 'params'), async
       [id]
     );
 
+    const successMessage = isBookingSchedule ? 
+      'Agendamento de marcação deletado com sucesso' : 
+      'Agendamento deletado com sucesso';
+
     res.json({
-      message: 'Agendamento deletado com sucesso'
+      message: successMessage
     });
 
   } catch (error) {
@@ -1493,6 +1603,204 @@ router.get('/stats/summary', async (req, res) => {
     console.error('Erro ao buscar estatísticas:', error);
     res.status(500).json({
       error: 'Erro interno do servidor'
+    });
+  }
+});
+
+// Integração em lote de produtos
+router.post('/bulk-integrate-products', requireAdmin, async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const { schedules } = req.body;
+    
+    console.log('🚀 BULK INTEGRATION - INICIANDO');
+    console.log(`👤 Usuário: ${req.user.user} (ID: ${req.user.id})`);
+    console.log(`📋 Request recebido com ${schedules ? schedules.length : 0} agendamento(s)`);
+    
+    if (!schedules || !Array.isArray(schedules) || schedules.length === 0) {
+      console.log('❌ Erro de validação: Lista de agendamentos vazia ou inválida');
+      return res.status(400).json({
+        success: false,
+        message: 'Lista de agendamentos é obrigatória'
+      });
+    }
+    
+    console.log(`🔗 Iniciando integração em lote para ${schedules.length} agendamento(s)`);
+    console.log(`📦 IDs dos agendamentos: ${schedules.map(s => s.schedule_id).join(', ')}`);
+    
+    const results = [];
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const scheduleData of schedules) {
+      const { schedule_id, products } = scheduleData;
+      
+      const scheduleStartTime = Date.now();
+      
+      try {
+        console.log(`\n📦 PROCESSANDO AGENDAMENTO ID ${schedule_id}`);
+        console.log(`   📋 Quantidade de produtos: ${products.length}`);
+        console.log(`   📝 Produtos: ${products.map(p => `${p.supp_code} (${p.description})`).join(', ')}`);
+        
+        // Buscar dados completos do agendamento
+        console.log(`   🔍 Buscando dados do agendamento ID ${schedule_id} no banco...`);
+        const fullScheduleData = await executeCheckinQuery(
+          'SELECT * FROM schedule_list WHERE id = ?',
+          [schedule_id]
+        );
+        
+        if (fullScheduleData.length === 0) {
+          console.log(`   ❌ Agendamento ${schedule_id} NÃO ENCONTRADO no banco`);
+          throw new Error(`Agendamento ${schedule_id} não encontrado`);
+        }
+        
+        const schedule = fullScheduleData[0];
+        console.log(`   ✅ Agendamento encontrado: NFe ${schedule.nfe_key}, Cliente ${schedule.client}`);
+        
+        // 1. Salvar produtos na tabela products (com verificação de duplicidade)
+        try {
+          console.log(`💾 Salvando ${products.length} produto(s) na tabela products`);
+          
+          let insertedProducts = 0;
+          let skippedProducts = 0;
+          
+          for (const product of products) {
+            console.log(`   🔍 Verificando produto: ${product.supp_code} - ${product.description}`);
+            
+            // Verificar se o produto já existe (mesmo supplier code + client)
+            const existingProducts = await executeCheckinQuery(
+              'SELECT id FROM products WHERE supp_code = ? AND client = ?',
+              [product.supp_code, schedule.client]
+            );
+            
+            if (existingProducts.length === 0) {
+              console.log(`   ➕ Inserindo produto ${product.supp_code} na tabela products`);
+              
+              // Produto não existe, inserir
+              await executeCheckinQuery(
+                `INSERT INTO products 
+                 (supp_code, cli_code, description, client, supplier, unit_value, latest_into_case, created_by, created_at) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+                [
+                  product.supp_code,
+                  product.cli_code || '',
+                  product.description,
+                  schedule.client,
+                  schedule.supplier,
+                  product.unit_value || 0,
+                  product.latest_into_case || 1,
+                  req.user.user
+                ]
+              );
+              console.log(`   ✅ Produto ${product.supp_code} inserido com sucesso`);
+              insertedProducts++;
+            } else {
+              console.log(`   ⚠️ Produto ${product.supp_code} já existe (ID: ${existingProducts[0].id}), pulando`);
+              skippedProducts++;
+            }
+          }
+          
+          console.log(`   📊 Resumo produtos: ${insertedProducts} inseridos, ${skippedProducts} pulados`);
+          
+        } catch (productSaveError) {
+          console.error(`❌ Erro ao salvar produtos do agendamento ${schedule_id}:`, productSaveError.message);
+          throw productSaveError;
+        }
+        
+        // 2. Integração com Corpem (produtos + NFe)
+        console.log(`🔗 Iniciando integração Corpem para agendamento ${schedule_id}`);
+        let corpemProductsSuccess = false;
+        let corpemNfeSuccess = false;
+        
+        try {
+          console.log(`   🔧 CORPEM: Integrando produtos...`);
+          const productsResult = await triggerProductsIntegration(schedule, req.user.user);
+          
+          if (productsResult.success) {
+            console.log(`   ✅ CORPEM: Produtos integrados com sucesso`);
+            corpemProductsSuccess = true;
+            
+            // Integração de NFe
+            console.log(`   🔧 CORPEM: Integrando NFe...`);
+            const nfResult = await triggerNfEntryIntegration(schedule, req.user.user);
+            
+            if (nfResult.success) {
+              console.log(`   ✅ CORPEM: NFe integrada com sucesso`);
+              corpemNfeSuccess = true;
+            } else {
+              console.log(`   ⚠️ CORPEM: Produtos OK, mas NFe falhou: ${nfResult.message}`);
+            }
+          } else {
+            console.log(`   ❌ CORPEM: Falha na integração de produtos: ${productsResult.message}`);
+          }
+          
+        } catch (corpemError) {
+          console.error(`   ❌ CORPEM: Erro na integração: ${corpemError.message}`);
+          console.error(`   📋 Stack trace:`, corpemError.stack);
+          // Não é um erro crítico, continuar com outros agendamentos
+        }
+        
+        const scheduleElapsed = Date.now() - scheduleStartTime;
+        console.log(`   ⏱️ Agendamento ${schedule_id} processado em ${scheduleElapsed}ms`);
+        
+        results.push({
+          schedule_id: schedule_id,
+          success: true,
+          message: 'Produtos integrados com sucesso',
+          corpem_products: corpemProductsSuccess,
+          corpem_nfe: corpemNfeSuccess,
+          processing_time_ms: scheduleElapsed
+        });
+        
+        successCount++;
+        
+      } catch (scheduleError) {
+        const scheduleElapsed = Date.now() - scheduleStartTime;
+        console.error(`❌ ERRO no agendamento ${schedule_id}: ${scheduleError.message}`);
+        console.error(`   📋 Stack trace:`, scheduleError.stack);
+        console.log(`   ⏱️ Tempo até erro: ${scheduleElapsed}ms`);
+        
+        results.push({
+          schedule_id: schedule_id,
+          success: false,
+          message: scheduleError.message,
+          error_details: scheduleError.stack,
+          processing_time_ms: scheduleElapsed
+        });
+        
+        errorCount++;
+      }
+    }
+    
+    const totalElapsed = Date.now() - startTime;
+    
+    console.log('\n🎯 BULK INTEGRATION - FINALIZADA');
+    console.log(`📊 ESTATÍSTICAS:`);
+    console.log(`   ✅ Sucessos: ${successCount}/${schedules.length}`);
+    console.log(`   ❌ Erros: ${errorCount}/${schedules.length}`);
+    console.log(`   ⏱️ Tempo total: ${totalElapsed}ms`);
+    console.log(`   📈 Média por agendamento: ${Math.round(totalElapsed / schedules.length)}ms`);
+    
+    res.json({
+      success: successCount > 0,
+      message: `Integração concluída: ${successCount} agendamento(s) integrado(s)${errorCount > 0 ? `, ${errorCount} com erro(s)` : ''}`,
+      results: results,
+      stats: {
+        total: schedules.length,
+        success: successCount,
+        errors: errorCount,
+        total_time_ms: totalElapsed,
+        average_time_ms: Math.round(totalElapsed / schedules.length)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na integração em lote:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno na integração em lote',
+      error: error.message
     });
   }
 });

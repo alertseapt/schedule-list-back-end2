@@ -7,6 +7,13 @@ const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
+    // Log temporário para debug de alteração de senha
+    if (req.path === '/profile/me' && req.method === 'PUT') {
+      console.log('🔐 DEBUG: Tentativa de alteração de senha');
+      console.log('🔑 Authorization header:', authHeader ? authHeader.substring(0, 30) + '...' : 'não encontrado');
+      console.log('🎫 Token extraído:', token ? token.substring(0, 20) + '...' : 'não encontrado');
+    }
+
     if (!token) {
       return res.status(401).json({
         error: 'Token de acesso requerido'
@@ -14,6 +21,11 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Log temporário para debug
+    if (req.path === '/profile/me' && req.method === 'PUT') {
+      console.log('✅ Token JWT verificado com sucesso. User ID:', decoded.userId);
+    }
     
     // Tentar verificar se o usuário ainda existe no banco dbusers
     // Se falhar por problemas de conectividade, usar dados do token como fallback
@@ -65,6 +77,11 @@ const authenticateToken = async (req, res, next) => {
       // Função para verificar acesso a um cliente específico (já pré-calculada)
       hasAccessTo: {}
     };
+    
+    // Log temporário para debug
+    if (req.path === '/profile/me' && req.method === 'PUT') {
+      console.log('👤 req.user definido:', { id: req.user.id, user: req.user.user, level_access: req.user.level_access });
+    }
     
     next();
   } catch (error) {

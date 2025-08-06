@@ -18,6 +18,11 @@ class CorpemIntegrationService {
       timeout: 30000 // 30 segundos
     };
 
+    // Debug log to verify URL configuration
+    console.log('🔧 CORPEM CONFIG DEBUG:');
+    console.log('   process.env.CORPEM_BASE_URL:', process.env.CORPEM_BASE_URL);
+    console.log('   this.config.baseURL:', this.config.baseURL);
+
     // Configurar axios instance com headers limpos
     this.axiosInstance = axios.create({
       baseURL: this.config.baseURL,

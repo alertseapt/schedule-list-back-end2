@@ -9,129 +9,6 @@
       @reset-filters="handleResetFilters"
     />
 
-    <!-- Bulk Actions Bar -->
-    <div v-if="canBulkManage" class="bulk-actions-bar">
-      <div class="selected-info">
-        <button class="btn btn-outline-secondary action-btn selection-btn" @click="clearSelection">
-          <i class="fas fa-times"></i> Limpar seleção
-          <span class="selection-badge">{{ selectedSchedules.length }}</span>
-        </button>
-      </div>
-      
-      <div class="bulk-actions">
-        <!-- Actions for Contestado status -->
-        <div v-if="selectedScheduleStatuses[0] === 'Contestado'" class="contestado-actions">
-          <!-- For level_access = 1 users -->
-          <div v-if="userLevel === 1" class="level-1-actions">
-            <button 
-              class="btn btn-success action-btn" 
-              @click="acceptNewDate"
-              :disabled="bulkActionLoading"
-            >
-              <i class="fas fa-check"></i> Aceitar Nova Data
-            </button>
-            <span class="contact-text">Ou entre em contato com nossa equipe</span>
-          </div>
-          
-          <!-- For non-level 1 users -->
-          <div v-else class="non-level-1-actions">
-            <button 
-              class="btn btn-success action-btn" 
-              @click="confirmContestado"
-              :disabled="bulkActionLoading"
-            >
-              <i class="fas fa-check"></i> Confirmar
-            </button>
-            
-            <input 
-              type="date" 
-              v-model="newDate" 
-              class="form-control"
-              :min="today"
-            />
-            <button 
-              class="btn btn-success action-btn" 
-              @click="changeContestadoToAgendado"
-              :disabled="!newDate || bulkActionLoading"
-            >
-              <i class="fas fa-calendar-alt"></i> Agendar
-            </button>
-          </div>
-        </div>
-        
-        <!-- Actions for Solicitado status -->
-        <div v-if="selectedScheduleStatuses[0] === 'Solicitado' && userLevel !== 1" class="solicitado-actions">
-          <button 
-            class="btn btn-success action-btn" 
-            @click="acceptSchedules"
-            :disabled="bulkActionLoading"
-          >
-            <i class="fas fa-check"></i> Aceitar Agendamento
-          </button>
-          
-          <input 
-            type="date" 
-            v-model="newDate" 
-            class="form-control"
-            :min="today"
-          />
-          <button 
-            class="btn btn-warning action-btn" 
-            @click="changeDateToContestado"
-            :disabled="!newDate || bulkActionLoading"
-          >
-            <i class="fas fa-calendar-alt"></i> Alterar Data
-          </button>
-        </div>
-        
-        <!-- Actions for Agendado status (non-level 1 users can mark as received) -->
-        <div v-if="selectedScheduleStatuses[0] === 'Agendado' && userLevel !== 1" class="agendado-actions">
-          <button 
-            class="btn btn-success action-btn" 
-            @click="markAsReceived"
-            :disabled="bulkActionLoading"
-          >
-            <i class="fas fa-check-circle"></i> Marcar como Conferência
-          </button>
-        </div>
-        
-        <!-- Actions for Conferência status (non-level 1 users can mark as Estoque) -->
-        <div v-if="(selectedScheduleStatuses[0] === 'Conferência' || selectedScheduleStatuses[0] === 'Recebido') && userLevel !== 1" class="conferencia-actions">
-          <button 
-            class="btn btn-info action-btn" 
-            @click="markAsEstoque"
-            :disabled="bulkActionLoading"
-          >
-            <i class="fas fa-warehouse"></i> Marcar como Estoque
-          </button>
-        </div>
-        
-        <!-- Actions for Cancelar status (non-level 1 users can accept cancellation requests from level 1) -->
-        <div v-if="selectedScheduleStatuses[0] === 'Cancelar' && userLevel !== 1" class="cancelar-actions">
-          <button 
-            class="btn btn-danger action-btn btn-accept-cancel" 
-            @click="acceptCancellation"
-            :disabled="bulkActionLoading"
-          >
-            <i class="fas fa-times-circle"></i> Aceitar Cancelamento
-          </button>
-          <span class="text-muted" style="font-size: 0.85em;">Solicitado por {{ cancelRequestedBy }}</span>
-        </div>
-        
-        <!-- Universal Cancel Button (all users can cancel) -->
-        <div v-if="selectedSchedules.length > 0 && !['Cancelar', 'Cancelado', 'Recusado', 'Estoque'].includes(selectedScheduleStatuses[0])" class="universal-actions">
-          <button 
-            class="btn btn-outline-danger action-btn" 
-            @click="cancelSchedules"
-            :disabled="bulkActionLoading"
-          >
-            <i class="fas fa-ban"></i> 
-            {{ userLevel === 1 ? 'Solicitar Cancelamento' : 'Cancelar Agendamento' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Table -->
     <div class="table-container">
       <div v-if="loading" class="loading-container">
@@ -149,9 +26,6 @@
         <table class="schedules-table">
         <thead>
           <tr>
-            <th style="width: 50px;">
-              
-            </th>
             <th>N° NF-e</th>
             <th>Cliente</th>
             <th>Data de Entrega</th>
@@ -162,17 +36,15 @@
         </thead>
         <tbody>
           <tr v-for="schedule in schedules" :key="schedule.id">
-            <td>
-              <input
-                type="checkbox"
-                :value="schedule.id"
-                v-model="selectedSchedules"
-                @change="onScheduleSelect"
-                :disabled="!canSelectSchedule(schedule)"
-              />
-            </td>
             <td>{{ schedule.number }}</td>
-            <td>{{ schedule.client }}</td>
+            <td>
+              <div>
+                {{ schedule.client }}
+                <div v-if="isBookingSchedule(schedule) && getBookingCreator(schedule)" class="booking-creator">
+                  <i class="fas fa-user"></i> Criado por: {{ getBookingCreator(schedule) }}
+                </div>
+              </div>
+            </td>
             <td>{{ formatDate(schedule.date) }}</td>
             <td>{{ schedule.case_count }}</td>
             <td>
@@ -184,14 +56,38 @@
               </span>
             </td>
             <td>
-              <button
-                class="btn btn-sm btn-outline-primary"
-                @click="openInfoModal(schedule)"
-                title="Mais informações"
-              >
-                <i class="fas fa-info-circle"></i>
-                Detalhes
-              </button>
+              <div class="schedule-actions">
+                <!-- Botão de detalhes (apenas para agendamentos normais) -->
+                <button
+                  v-if="!isBookingSchedule(schedule)"
+                  class="btn btn-sm btn-outline-primary"
+                  @click="openInfoModal(schedule)"
+                  title="Mais informações"
+                >
+                  <i class="fas fa-info-circle"></i>
+                  Detalhes
+                </button>
+                
+                <!-- Indicador de agendamento de marcação -->
+                <span
+                  v-if="isBookingSchedule(schedule)"
+                  class="booking-badge"
+                  title="Agendamento de Marcação"
+                >
+                  <i class="fas fa-calendar-plus"></i>
+                  Marcação
+                </span>
+                
+                <!-- Botão de exclusão para agendamentos de marcação -->
+                <button
+                  v-if="isBookingSchedule(schedule) && canDeleteBooking()"
+                  class="btn btn-sm btn-outline-danger"
+                  @click="confirmDeleteBooking(schedule)"
+                  title="Excluir agendamento de marcação"
+                >
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -226,6 +122,14 @@
       @notification="$emit('notification', $event)"
     >
     </schedule-edit-modal>
+
+    <schedule-booking-modal
+      v-if="showBookingModal"
+      :show-modal="showBookingModal"
+      @close="closeBookingModal"
+      @created="handleBookingCreated"
+    >
+    </schedule-booking-modal>
   </div>
 </template>
 
@@ -233,6 +137,7 @@
 import NfeInfoModal from './NfeInfoModal.vue'
 import ScheduleEditModal from './ScheduleEditModal.vue'
 import ScheduleFilters from './ScheduleFilters.vue'
+import ScheduleBookingModal from './ScheduleBookingModal.vue'
 
 export default {
   name: 'SchedulesList',
@@ -241,6 +146,7 @@ export default {
     NfeInfoModal,
     ScheduleEditModal,
     ScheduleFilters,
+    ScheduleBookingModal,
   },
 
   data() {
@@ -254,6 +160,7 @@ export default {
       showInfoModal: false,
       showEditModal: false,
       scheduleToEdit: null,
+      showBookingModal: false,
       pagination: {
         page: 1,
         limit: 20,
@@ -290,6 +197,7 @@ export default {
         Cancelar: { class: 'warning', label: 'Cancelar' },
         Recusado: { class: 'dark', label: 'Recusado' },
         Cancelado: { class: 'secondary', label: 'Cancelado' },
+        Marcação: { class: 'booking', label: 'Marcação' },
       }
     },
 
@@ -335,6 +243,10 @@ export default {
     today() {
       return new Date().toISOString().split('T')[0]
     },
+
+    canCreateBooking() {
+      return this.userLevel !== 1
+    },
     
     statusOptions() {
       return [
@@ -348,6 +260,7 @@ export default {
         { value: 'Cancelar', label: 'Cancelar' },
         { value: 'Cancelado', label: 'Cancelado' },
         { value: 'Recusado', label: 'Recusado' },
+        { value: 'Marcação', label: 'Marcação' },
       ]
     },
   },
@@ -563,8 +476,16 @@ export default {
 
     canSelectSchedule(schedule) {
       // Verificar se pode selecionar baseado no status e permissões do usuário
-      const allowedStatuses = ['Solicitado', 'Contestado', 'Cancelar', 'Agendado', 'Conferência', 'Recebido', 'Tratativa', 'Estoque']
+      const allowedStatuses = ['Solicitado', 'Contestado', 'Cancelar', 'Agendado', 'Conferência', 'Recebido', 'Tratativa', 'Estoque', 'Marcação']
       if (!allowedStatuses.includes(schedule.status)) return false
+
+      // Para agendamentos de marcação, verificar se usuário tem permissão
+      if (schedule.status === 'Marcação') {
+        // Apenas usuários com nível diferente de 1 podem selecionar marcações
+        if (this.userLevel === 1 || this.userLevel === '1') {
+          return false
+        }
+      }
 
       // Se já tem agendamentos selecionados, só pode selecionar do mesmo status
       if (this.selectedSchedules.length > 0) {
@@ -728,6 +649,41 @@ export default {
         this.$emit('notification', {
           type: 'error',
           message: 'Erro ao cancelar agendamentos'
+        })
+      } finally {
+        this.bulkActionLoading = false
+      }
+    },
+
+    async deleteMarcacoes() {
+      if (this.selectedSchedules.length === 0) return
+      
+      if (!confirm(`Tem certeza que deseja excluir ${this.selectedSchedules.length} marcação(ões)? Esta ação não pode ser desfeita.`)) {
+        return
+      }
+      
+      this.bulkActionLoading = true
+      try {
+        const apiClient = window.apiClient
+        
+        // Deletar cada marcação selecionada
+        for (const scheduleId of this.selectedSchedules) {
+          await apiClient.request(`/schedules/${scheduleId}`, {
+            method: 'DELETE'
+          })
+        }
+        
+        this.$emit('notification', {
+          type: 'success',
+          message: `${this.selectedSchedules.length} marcação(ões) excluída(s) com sucesso`
+        })
+        this.clearSelection()
+        await this.loadSchedules()
+      } catch (error) {
+        console.error('Erro ao excluir marcações:', error)
+        this.$emit('notification', {
+          type: 'error',
+          message: 'Erro ao excluir marcações'
         })
       } finally {
         this.bulkActionLoading = false
@@ -1002,7 +958,6 @@ export default {
 
     // Métodos de filtros
     handleFiltersChanged(newFilters) {
-      console.log('🔍 Filtros alterados:', newFilters)
       this.currentFilters = { ...newFilters }
       this.pagination.page = 1
       this.pagination.hasMore = true
@@ -1029,50 +984,36 @@ export default {
     loadAvailableClients() {
       try {
         const userData = localStorage.getItem('user')
-        console.log('🔍 DEBUG SchedulesList: userData do localStorage:', userData)
         
         if (!userData) {
-          console.log('❌ Nenhum dado de usuário encontrado no localStorage')
           return
         }
         
         const user = JSON.parse(userData)
-        console.log('👤 SchedulesList - Usuário logado completo:', user)
-        console.log('📊 Level access:', user.level_access)
-        console.log('🏢 cli_access:', user.cli_access)
-        console.log('🏢 cli_access type:', typeof user.cli_access)
         
         // Tratar cli_access se estiver como string
         let cliAccess = user.cli_access
         if (typeof cliAccess === 'string' && cliAccess) {
           try {
             cliAccess = JSON.parse(cliAccess)
-            console.log('🔄 cli_access parsed from string:', cliAccess)
           } catch (e) {
-            console.log('❌ Erro ao fazer parse do cli_access string:', e)
             cliAccess = null
           }
         }
         
         // Se o usuário tem level_access = 0, tem acesso total
         if (user.level_access === 0) {
-          console.log('🔓 Usuário desenvolvedor - buscando todos os clientes via API')
           // Para desenvolvedores, podemos buscar todos os clientes via API
           // Por enquanto, vamos deixar vazio e carregar dinamicamente dos agendamentos
           this.availableClients = []
-          console.log('📝 availableClients definido como vazio para desenvolvedor')
           return
         }
         
         // Para outros usuários, usar cli_access
         if (cliAccess && typeof cliAccess === 'object') {
-          console.log('✅ cli_access encontrado, processando...')
-          
           const cliAccessEntries = Object.entries(cliAccess)
-          console.log('📋 Entradas do cli_access:', cliAccessEntries)
           
           const clients = cliAccessEntries.map(([cnpj, data]) => {
-            console.log(`🏪 Processando cliente ${cnpj}:`, data)
             return {
               cnpj: cnpj,
               name: data.nome || `Cliente ${cnpj}`,
@@ -1080,17 +1021,79 @@ export default {
             }
           })
           
-          console.log('👥 Clientes processados:', clients)
           this.availableClients = clients
-          console.log('💾 availableClients definido:', this.availableClients)
         } else {
-          console.log('⚠️ Usuário sem cli_access definido ou cli_access não é objeto')
-          console.log('⚠️ cli_access value:', cliAccess)
           this.availableClients = []
         }
       } catch (error) {
         console.error('❌ Erro ao carregar clientes disponíveis:', error)
         this.availableClients = []
+      }
+    },
+
+    // Métodos para agendamentos de marcação
+    isBookingSchedule(schedule) {
+      // Agendamento de marcação é identificado pela ausência de nfe_key
+      return !schedule.nfe_key && schedule.status === 'Marcação'
+    },
+
+    getBookingCreator(schedule) {
+      // Retorna o criador do agendamento de marcação
+      return schedule.info?.created_by || schedule.created_by || null
+    },
+
+    canDeleteBooking() {
+      // Apenas usuários com nível diferente de 1 podem excluir
+      return this.userLevel !== 1
+    },
+
+    openBookingModal() {
+      this.showBookingModal = true
+    },
+
+    closeBookingModal() {
+      this.showBookingModal = false
+    },
+
+    async handleBookingCreated(response) {
+      this.$emit('notification', {
+        type: 'success',
+        message: 'Agendamento de marcação criado com sucesso!'
+      })
+      
+      // Recarregar a lista de agendamentos
+      this.pagination.page = 1
+      await this.loadSchedules()
+      
+      this.closeBookingModal()
+    },
+
+    async confirmDeleteBooking(schedule) {
+      if (!confirm(`Tem certeza que deseja excluir o agendamento de marcação para ${schedule.client}?`)) {
+        return
+      }
+
+      try {
+        const apiClient = window.apiClient
+        await apiClient.request(`/schedules/${schedule.id}`, {
+          method: 'DELETE'
+        })
+
+        this.$emit('notification', {
+          type: 'success',
+          message: 'Agendamento de marcação excluído com sucesso!'
+        })
+
+        // Recarregar a lista
+        this.pagination.page = 1
+        await this.loadSchedules()
+
+      } catch (error) {
+        console.error('Erro ao excluir agendamento de marcação:', error)
+        this.$emit('notification', {
+          type: 'error',
+          message: 'Erro ao excluir agendamento de marcação'
+        })
       }
     },
   },
@@ -1367,5 +1370,44 @@ export default {
   .table-wrapper {
     max-height: 400px;
   }
+}
+
+/* Estilos para agendamentos de marcação */
+.schedule-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.booking-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #e3f2fd;
+  color: #1565c0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid #90caf9;
+}
+
+.booking-creator {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+.booking-creator i {
+  margin-right: 0.25rem;
+}
+
+/* Status badge para marcação */
+.status-badge.booking {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #ba68c8;
+  font-weight: 500;
 }
 </style>

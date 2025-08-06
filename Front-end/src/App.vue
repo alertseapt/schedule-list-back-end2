@@ -22,7 +22,7 @@
       <!-- Main Content -->
       <main class="main-content">
         <!-- Dashboard Content -->
-        <div v-if="!showSchedulesList && !showSettingsPage" class="content-area">
+        <div v-if="!showSchedulesList && !showSettingsPage && !showXmlUploadPage" class="content-area">
           <!-- Stats Cards -->
           <StatsCards :stats="dashboardStats" :loading="statsLoading">
           </StatsCards>
@@ -42,6 +42,16 @@
                 >
                   <i class="fas fa-plus"></i>
                   Criar Agendamento
+                </button>
+                <button
+                  v-if="canCreateBooking"
+                  class="btn btn-outline-primary"
+                  @click="openBookingModal"
+                  :disabled="loading"
+                  title="Criar agendamento de marcação"
+                >
+                  <i class="fas fa-calendar-plus"></i>
+                  Marcação
                 </button>
                 <button
                   class="btn btn-outline-primary"
@@ -133,6 +143,20 @@
                     {{ userLevel === 1 ? 'Solicitar Cancelamento' : 'Cancelar Agendamento' }}
                   </button>
                 </div>
+                
+                <!-- Actions for Marcação status (non-level 1 users can delete booking schedules) -->
+                <div v-if="selectedScheduleStatuses[0] === 'Marcação' && userLevel !== 1" class="marcacao-actions">
+                  <button 
+                    class="btn btn-danger action-btn" 
+                    @click="deleteMarcacoes"
+                    :disabled="bulkActionLoading"
+                  >
+                    <i class="fas fa-trash"></i> Excluir Marcações
+                  </button>
+                  <span class="text-muted" style="font-size: 0.85em;">
+                    Excluir {{ selectedSchedules.length }} marcação(ões) selecionada(s)
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -212,6 +236,7 @@
             />
             <ScheduleEditModal v-if="showEditModal" :schedule-data="scheduleToEdit" :show-modal="showEditModal" @close="closeEditModal" @updated="handleScheduleUpdated" @notification="addNotification" />
             <ScheduleCreationModal v-if="showScheduleCreationModal" :show-modal="showScheduleCreationModal" @close="closeScheduleCreationModal" @created="handleScheduleCreated" />
+            <ScheduleBookingModal v-if="showBookingModal" :show-modal="showBookingModal" @close="closeBookingModal" @created="handleBookingCreated" />
           </div>
         </div>
 
@@ -223,6 +248,11 @@
         <!-- Settings Page -->
         <div v-if="showSettingsPage" class="content-area">
           <SettingsPage @notification="addNotification"> </SettingsPage>
+        </div>
+
+        <!-- XML Upload Page -->
+        <div v-if="showXmlUploadPage" class="content-area">
+          <XmlUploadPage @notification="addNotification"> </XmlUploadPage>
         </div>
       </main>
     </div>
@@ -247,8 +277,11 @@ import ScheduleFilters from './components/ScheduleFilters.vue'
 import NfeInfoModal from './components/NfeInfoModal.vue'
 import ScheduleEditModal from './components/ScheduleEditModal.vue'
 import ScheduleCreationModal from './components/ScheduleCreationModal.vue'
+import ScheduleBookingModal from './components/ScheduleBookingModal.vue'
 import SettingsPage from './views/SettingsPage.vue'
+import XmlUploadPage from './views/XmlUploadPage.vue'
 import { checkPermission, checkUserLevel } from './utils/permissions.js'
+import { BASE_URL } from './config/api.js'
 import axios from 'axios'
 
 // Função que inicializa e demonstra o sistema de permissões
@@ -283,7 +316,7 @@ function initializePermissions() {
 // Usar o apiClient global já otimizado com cache (importado de main.js)
 const apiClient = window.apiClient || new (class VueApiClientFallback {
   constructor() {
-    this.baseURL = 'http://localhost:4000/api'
+    this.baseURL = BASE_URL
     this.token = localStorage.getItem('token')
   }
 
@@ -311,6 +344,12 @@ const apiClient = window.apiClient || new (class VueApiClientFallback {
       return response.data
     } catch (error) {
       if (error.response?.status === 401) {
+        // Não fazer logout automático para erros de alteração de senha
+        // Esses erros devem ser tratados pelo próprio componente
+        if (endpoint === '/users/profile/me') {
+          throw error
+        }
+        
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         console.log('Token expirado, redirecionando para login')
@@ -470,6 +509,24 @@ const apiClient = window.apiClient || new (class VueApiClientFallback {
     })
   }
 
+  // User Profile endpoints
+  async updateProfile(profileData) {
+    return this.request('/user/profile', {
+      method: 'PUT',
+      data: profileData,
+    })
+  }
+
+  async changePassword(passwordData) {
+    console.log('🔐 Tentando alterar senha:', passwordData)
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken')
+    
+    return this.request('/users/profile/me', {
+      method: 'PUT',
+      data: passwordData,
+    })
+  }
+
   getCurrentUser() {
     const userData = localStorage.getItem('user')
     return userData ? JSON.parse(userData) : null
@@ -494,7 +551,9 @@ export default {
     NfeInfoModal,
     ScheduleEditModal,
     ScheduleCreationModal,
+    ScheduleBookingModal,
     SettingsPage,
+    XmlUploadPage,
   },
 
   data() {
@@ -504,6 +563,7 @@ export default {
       activeMenu: 'dashboard',
       showSchedulesList: false,
       showSettingsPage: false,
+      showXmlUploadPage: false,
 
       dashboardStats: {
         pendingDeliveries: 0,
@@ -527,6 +587,7 @@ export default {
       showInfoModal: false,
       showEditModal: false,
       showScheduleCreationModal: false,
+      showBookingModal: false,
       scheduleToEdit: null,
       pagination: {
         page: 1,
@@ -617,6 +678,11 @@ export default {
       const currentUser = this.user
       return currentUser && currentUser.level_access !== undefined && currentUser.level_access >= 0
     },
+
+    canCreateBooking() {
+      const currentUser = this.user
+      return currentUser && currentUser.level_access !== 1
+    },
   },
   async mounted() {
     console.log('🚀 App.vue montado');
@@ -635,15 +701,12 @@ export default {
     async checkAuth() {
       const token = localStorage.getItem('token')
       const userData = localStorage.getItem('user')
-      console.log('Verificando autenticação...', { token: !!token, userData: !!userData })
       if (!token || !userData) {
-        console.log('Redirecionando para login - token ou userData não encontrados')
         window.location.href = '/login.html'
         return
       }
       try {
         this.user = JSON.parse(userData)
-        console.log('Usuário autenticado:', this.user)
       } catch (error) {
         console.error('Erro ao parsear dados do usuário:', error)
         window.location.href = '/login.html'
@@ -725,7 +788,8 @@ export default {
       console.log('Menu clicado:', menuId)
 
       this.showSchedulesList = false
-      this.showSettingsPage = false // Resetar a página de configurações ao mudar de menu
+      this.showSettingsPage = false
+      this.showXmlUploadPage = false
 
       switch (menuId) {
         case 'dashboard':
@@ -733,6 +797,9 @@ export default {
           break
         case 'agendamento':
           this.showSchedulesList = true
+          break
+        case 'agendamento-lote':
+          this.showXmlUploadPage = true
           break
         case 'configuracoes':
           this.showSettingsPage = true
@@ -915,7 +982,6 @@ export default {
       try {
         // Usar o apiClient global com cache
         console.log('🎯 Fazendo única requisição para /schedules...')
-        console.log('📝 Filtros aplicados:', this.currentFilters)
         
         // UMA ÚNICA REQUISIÇÃO para obter todos os dados necessários
         const response = await apiClient.request('/schedules', {
@@ -1079,8 +1145,18 @@ export default {
     },
     canSelectSchedule(schedule) {
       // Verificar se pode selecionar baseado no status e permissões do usuário
-      const allowedStatuses = ['Solicitado', 'Contestado', 'Cancelar', 'Agendado', 'Conferência', 'Recebido', 'Tratativa', 'Estoque']
+      const allowedStatuses = ['Solicitado', 'Contestado', 'Cancelar', 'Agendado', 'Conferência', 'Recebido', 'Tratativa', 'Estoque', 'Marcação']
       if (!allowedStatuses.includes(schedule.status)) return false
+      
+      // Verificar permissões específicas para agendamentos de marcação
+      if (schedule.status === 'Marcação') {
+        // Apenas usuários com nível diferente de 1 podem selecionar marcações
+        const currentUser = this.getCurrentUser()
+        if (currentUser && currentUser.level_access === 1) {
+          return false
+        }
+      }
+      
       // Se já tem agendamentos selecionados, só pode selecionar do mesmo status
       if ((this.selectedSchedules || []).length > 0) {
         const selectedStatuses = this.selectedScheduleStatuses
@@ -1103,6 +1179,7 @@ export default {
         Cancelar: { class: 'warning', label: 'Cancelar' },
         Recusado: { class: 'dark', label: 'Recusado' },
         Cancelado: { class: 'secondary', label: 'Cancelado' },
+        Marcação: { class: 'booking', label: 'Marcação' },
       }
       return statusConfig[status] || { class: 'secondary', label: 'Desconhecido' }
     },
@@ -1203,6 +1280,24 @@ export default {
       // Recarregar a lista de agendamentos
       await this.refreshPageAfterAction('Lista atualizada com novo agendamento')
     },
+
+    // Métodos para agendamento de marcação
+    openBookingModal() {
+      this.showBookingModal = true
+    },
+
+    closeBookingModal() {
+      this.showBookingModal = false
+    },
+
+    async handleBookingCreated(createdBooking) {
+      console.log('Agendamento de marcação criado:', createdBooking)
+      this.addNotification('Agendamento de marcação criado com sucesso!', 'success')
+      this.closeBookingModal()
+      
+      // Recarregar a lista de agendamentos
+      await this.refreshPageAfterAction('Lista atualizada com novo agendamento de marcação')
+    },
     async handleScheduleUpdated(updatedSchedule) {
       console.log('✅ Agendamento atualizado:', updatedSchedule)
       
@@ -1264,8 +1359,18 @@ export default {
     },
 
     canSelectSchedule(schedule) {
-      const allowedStatuses = ['Solicitado', 'Contestado', 'Cancelar', 'Agendado', 'Conferência', 'Recebido', 'Tratativa', 'Estoque']
+      const allowedStatuses = ['Solicitado', 'Contestado', 'Cancelar', 'Agendado', 'Conferência', 'Recebido', 'Tratativa', 'Estoque', 'Marcação']
       if (!allowedStatuses.includes(schedule.status)) return false
+      
+      // Verificar permissões específicas para agendamentos de marcação
+      if (schedule.status === 'Marcação') {
+        // Apenas usuários com nível diferente de 1 podem selecionar marcações
+        const currentUser = this.getCurrentUser()
+        if (currentUser && currentUser.level_access === 1) {
+          return false
+        }
+      }
+      
       if ((this.selectedSchedules || []).length > 0) {
         const selectedStatuses = this.selectedScheduleStatuses
         if (selectedStatuses.length === 1 && !selectedStatuses.includes(schedule.status)) {
@@ -1398,6 +1503,33 @@ export default {
       } catch (error) {
         console.error('Erro ao cancelar agendamentos:', error)
         this.addNotification('Erro ao cancelar agendamentos', 'error')
+      } finally {
+        this.bulkActionLoading = false
+      }
+    },
+
+    async deleteMarcacoes() {
+      if (this.selectedSchedules.length === 0) return
+      
+      if (!confirm(`Tem certeza que deseja excluir ${this.selectedSchedules.length} marcação(ões)? Esta ação não pode ser desfeita.`)) {
+        return
+      }
+      
+      this.bulkActionLoading = true
+      try {
+        // Deletar cada marcação selecionada
+        for (const scheduleId of this.selectedSchedules) {
+          await window.apiClient.request(`/schedules/${scheduleId}`, {
+            method: 'DELETE'
+          })
+        }
+        
+        this.addNotification(`${this.selectedSchedules.length} marcação(ões) excluída(s) com sucesso`, 'success')
+        this.clearSelection()
+        await this.refreshPageAfterAction()
+      } catch (error) {
+        console.error('Erro ao excluir marcações:', error)
+        this.addNotification('Erro ao excluir marcações', 'error')
       } finally {
         this.bulkActionLoading = false
       }
@@ -1718,7 +1850,6 @@ export default {
 
     // Métodos de filtros
     handleFiltersChanged(newFilters) {
-      console.log('🔍 Filtros alterados:', newFilters)
       this.currentFilters = { ...newFilters }
       this.pagination.page = 1
       this.pagination.hasMore = true
@@ -1745,50 +1876,36 @@ export default {
     loadAvailableClients() {
       try {
         const userData = localStorage.getItem('user')
-        console.log('🔍 DEBUG: userData do localStorage:', userData)
         
         if (!userData) {
-          console.log('❌ Nenhum dado de usuário encontrado no localStorage')
           return
         }
         
         const user = JSON.parse(userData)
-        console.log('👤 Usuário logado completo:', user)
-        console.log('📊 Level access:', user.level_access)
-        console.log('🏢 cli_access:', user.cli_access)
-        console.log('🏢 cli_access type:', typeof user.cli_access)
         
         // Tratar cli_access se estiver como string
         let cliAccess = user.cli_access
         if (typeof cliAccess === 'string' && cliAccess) {
           try {
             cliAccess = JSON.parse(cliAccess)
-            console.log('🔄 cli_access parsed from string:', cliAccess)
           } catch (e) {
-            console.log('❌ Erro ao fazer parse do cli_access string:', e)
             cliAccess = null
           }
         }
         
         // Se o usuário tem level_access = 0, tem acesso total
         if (user.level_access === 0) {
-          console.log('🔓 Usuário desenvolvedor - buscando todos os clientes via API')
           // Para desenvolvedores, podemos buscar todos os clientes via API
           // Por enquanto, vamos deixar vazio e carregar dinamicamente dos agendamentos
           this.availableClients = []
-          console.log('📝 availableClients definido como vazio para desenvolvedor')
           return
         }
         
         // Para outros usuários, usar cli_access
         if (cliAccess && typeof cliAccess === 'object') {
-          console.log('✅ cli_access encontrado, processando...')
-          
           const cliAccessEntries = Object.entries(cliAccess)
-          console.log('📋 Entradas do cli_access:', cliAccessEntries)
           
           const clients = cliAccessEntries.map(([cnpj, data]) => {
-            console.log(`🏪 Processando cliente ${cnpj}:`, data)
             return {
               cnpj: cnpj,
               name: data.nome || `Cliente ${cnpj}`,
@@ -1796,12 +1913,8 @@ export default {
             }
           })
           
-          console.log('👥 Clientes processados:', clients)
           this.availableClients = clients
-          console.log('💾 availableClients definido:', this.availableClients)
         } else {
-          console.log('⚠️ Usuário sem cli_access definido ou cli_access não é objeto')
-          console.log('⚠️ cli_access value:', cliAccess)
           this.availableClients = []
         }
       } catch (error) {
@@ -1968,6 +2081,14 @@ window.apiClient = apiClient
   background-color: #8B1538 !important; /* Cor vinho */
   color: white !important;
   border-color: #8B1538 !important;
+}
+
+/* Status badge personalizado para Marcação */
+.status-badge.booking {
+  background-color: #f3e5f5 !important; /* Roxo claro */
+  color: #7b1fa2 !important; /* Roxo escuro */
+  border-color: #ba68c8 !important; /* Roxo médio */
+  font-weight: 500 !important;
 }
 
 /* Bulk Actions Styles */
