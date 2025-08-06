@@ -123,8 +123,11 @@ router.post('/notification', async (req, res) => {
     );
 
     // Configurar e-mail
+    const senderEmail = process.env.SMTP_SENDER_EMAIL || process.env.SMTP_USER || 'no-reply@mercocamptech.com.br';
+    const senderName = process.env.SMTP_SENDER_NAME || 'Sistema de Agendamentos';
+    
     const mailOptions = {
-      from: `"${process.env.SMTP_SENDER_NAME || 'Sistema de Agendamentos'}" <${process.env.SMTP_SENDER_EMAIL || process.env.SMTP_USER}>`,
+      from: `"${senderName}" <${senderEmail}>`,
       to: recipientList.join(', '),
       subject: `Agendamento ${scheduleData.number} - Status alterado para ${newStatus}`,
       html: htmlBody

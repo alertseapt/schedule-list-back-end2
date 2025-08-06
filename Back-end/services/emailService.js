@@ -663,8 +663,11 @@ class EmailService {
 
       const htmlBody = await this.generateStatusChangeTemplate(scheduleData, oldStatus, newStatus, user, comment);
 
+      const senderEmail = process.env.SMTP_SENDER_EMAIL || process.env.SMTP_USER || 'no-reply@mercocamptech.com.br';
+      const senderName = process.env.SMTP_SENDER_NAME || 'Sistema de Agendamentos';
+      
       const mailOptions = {
-        from: `"${process.env.SMTP_SENDER_NAME || 'Sistema de Agendamentos'}" <${process.env.SMTP_SENDER_EMAIL || process.env.SMTP_USER}>`,
+        from: `"${senderName}" <${senderEmail}>`,
         to: recipients.join(', '),
         subject: isCreation 
           ? `Novo Agendamento #${scheduleData.id} - ${newStatus}`
@@ -708,8 +711,11 @@ class EmailService {
 
       const htmlBody = this.generateTestTemplate();
 
+      const senderEmail = process.env.SMTP_SENDER_EMAIL || process.env.SMTP_USER || 'no-reply@mercocamptech.com.br';
+      const senderName = process.env.SMTP_SENDER_NAME || 'Sistema de Agendamentos';
+      
       const mailOptions = {
-        from: `"${process.env.SMTP_SENDER_NAME || 'Sistema de Agendamentos'}" <${process.env.SMTP_SENDER_EMAIL || process.env.SMTP_USER}>`,
+        from: `"${senderName}" <${senderEmail}>`,
         to: recipientList.join(', '),
         subject: 'Teste',
         html: htmlBody
